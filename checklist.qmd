@@ -1,0 +1,5 @@
+---
+pagetitle: "Checklist"
+---
+
+{{< include flu-ha-drift-checklist.md >}}

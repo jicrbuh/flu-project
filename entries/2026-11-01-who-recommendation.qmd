@@ -1,0 +1,8 @@
+---
+title: "Read WHO 2026-27 NH recommendation"
+date: 2026-11-01
+categories: ["2026", "background"]
+---
+
+Strains: A/Missouri/11/2025 (H1N1)pdm09, A/Darwin/1454/2025 (H3N2, egg),
+B/Tokyo/EIS13-175/2025 (B/Victoria, egg).

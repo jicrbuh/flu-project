@@ -1,0 +1,15 @@
+project:
+  type: website
+
+website:
+  title: "Flu HA drift"
+  navbar:
+    left:
+      - href: checklist.qmd
+        text: Checklist
+      - href: index.qmd
+        text: Results
+
+format:
+  html:
+    theme: cosmo

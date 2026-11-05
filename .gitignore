@@ -1,0 +1,13 @@
+# Quarto build output
+_site/
+.quarto/
+freeze/
+site_libs/
+
+# Generated support files
+**/*_files/
+**/*_cache/
+
+# Common local junk
+.DS_Store
+Thumbs.db

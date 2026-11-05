@@ -1,0 +1,8 @@
+---
+title: "Results"
+---
+
+Mapping hemagglutinin sequence changes across flu seasons onto 3D structure,
+to check whether they cluster at head epitopes vs the conserved stem.
+
+## 2025
