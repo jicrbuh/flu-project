@@ -1,0 +1,4 @@
+Reference-to-PDB numbering diagnostic
+First mature residue: ref_index=18, mature_index=1, pdb_resi=63
+Later check: ref_index=62, mature_index=45, pdb_resi=107
+Verify one landmark directly in PyMOL, e.g. select a residue near the receptor binding site and compare numbering.

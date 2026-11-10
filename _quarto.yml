@@ -5,6 +5,8 @@ website:
   title: "Flu HA drift"
   navbar:
     left:
+      - href: project-overview.qmd
+        text: Overview
       - href: checklist.qmd
         text: Checklist
       - href: index.qmd

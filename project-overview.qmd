@@ -1,0 +1,66 @@
+---
+title: "Project overview"
+---
+
+This project maps influenza HA sequence drift across seasons onto a structural model, with the goal of checking whether variable residues cluster in the head region or remain concentrated in conserved stem sites.
+
+## What the project does
+
+The workflow starts from a reference HA sequence and then:
+
+1. fetches seasonal HA records,
+2. filters and subsamples sequences,
+3. aligns them to the reference,
+4. measures reference-anchored variability by position and season,
+5. writes a PyMOL-ready residue map for structural inspection.
+
+The analysis is organized around a few key outputs:
+
+- `data/ref/` for the reference sequence
+- `data/raw/` for fetched sequence pulls
+- `data/meta.csv` for metadata such as season, passage, and strain
+- `results/` for alignment, variability tables, and PyMOL output
+- `scripts/` for each analysis stage
+
+## How to run it
+
+Create a local environment file for your NCBI Entrez email:
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` and set:
+
+```bash
+ENTREZ_EMAIL=your-email@example.com
+```
+
+Run the pipeline:
+
+```bash
+nextflow run main.nf -resume
+```
+
+A fresh run is:
+
+```bash
+nextflow clean -f
+nextflow run main.nf
+```
+
+## Important notes
+
+- The actual project source files are tracked in Git.
+- Generated output such as `data/raw/`, `data/selected/`, `.quarto/`, and `_site/` are ignored.
+- The reference-to-PDB numbering step is deliberately treated as an early checkpoint because incorrect residue numbering can invalidate the rest of the analysis.
+- This project is intentionally staged as a reproducible pipeline: each script is a step, and rerunning the workflow reuses cached results when inputs have not changed.
+
+## Main workflow files
+
+- [main.nf](main.nf)
+- [scripts/01_fetch.py](scripts/01_fetch.py)
+- [scripts/02_select.py](scripts/02_select.py)
+- [scripts/03_numbering.py](scripts/03_numbering.py)
+- [scripts/04_variability.py](scripts/04_variability.py)
+- [scripts/05_pymol.py](scripts/05_pymol.py)

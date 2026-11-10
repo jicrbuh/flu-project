@@ -8,6 +8,23 @@ site_libs/
 **/*_files/
 **/*_cache/
 
+# Generated sequence downloads / temporary pipeline outputs
+data/raw/
+
+# Nextflow runtime state
+.nextflow/
+.nextflow.log*
+work/
+
+# Local secrets / environment overrides
+.env
+.env.*
+!.env.example
+
 # Common local junk
 .DS_Store
 Thumbs.db
+.vscode/
+
+/.quarto/
+**/*.quarto_ipynb

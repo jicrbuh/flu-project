@@ -17,6 +17,7 @@ Related: [Compugen role](https://cgen.com/careers/career-detail/default.aspx?uid
 ## Data
 - [ ] GISAID EpiFlu: optional. Registration needs identity verification + Database Access Agreement; webmail addresses may be slowed. DAA forbids redistributing GISAID sequences (no raw sequences in a public GitHub repo — scripts + EPI_ISL ID lists + acknowledgment table only). Approval for an individual without an institution: unknown
 - [ ] Pull HA sequences for the 2026-27 strains (H1N1 first)
+  - [x] got H1N1 PV502848.1 - (A/Missouri/11/2025(H1N1)) segment 4 hemagglutinin -  https://www.ncbi.nlm.nih.gov/nuccore/PV502848.1?report=fasta
 - [ ] Pull HA sequences from past seasons from open sources first: NCBI Virus / Influenza Virus Resource (GenBank), BV-BRC. NOTE: Nextstrain seasonal flu builds use GISAID data and are restricted in re-sharing, so they are NOT a fully open source (earlier note here was wrong). Check what the tree page's 'Download Data' offers
 - [ ] Check GenBank/BV-BRC coverage of the 2026-27 strains and subclade K (recent strains may be missing)
 - [ ] Choose one subtype to start (H1N1pdm09 or H3N2)
