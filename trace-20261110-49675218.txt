@@ -1,0 +1,7 @@
+task_id	hash	native_id	name	status	exit	submit	duration	realtime	%cpu	peak_rss	peak_vmem	rchar	wchar
+2	53/20c5be	100835	numbering (1)	CACHED	0	2026-11-10 12:59:56.707	610ms	564ms	-	-	-	-	-
+1	1c/cd2924	135900	fetch (2025_26)	CACHED	0	2026-11-10 13:45:26.779	2.1s	2.1s	-	-	-	-	-
+3	75/43c464	135966	select	CACHED	0	2026-11-10 13:45:28.901	376ms	304ms	-	-	-	-	-
+4	23/865c8f	136040	align (1)	CACHED	0	2026-11-10 13:45:29.304	198ms	125ms	-	-	-	-	-
+5	c4/67c192	136164	variability (1)	CACHED	0	2026-11-10 13:45:29.516	356ms	270ms	-	-	-	-	-
+6	54/7edd5f	136202	pymol (1)	CACHED	0	2026-11-10 13:45:29.884	300ms	212ms	-	-	-	-	-

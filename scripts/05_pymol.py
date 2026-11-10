@@ -19,12 +19,18 @@ ROOT = Path(__file__).resolve().parents[1]
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Create a PyMOL session script from the drift summary.")
     parser.add_argument("--drift-csv", type=Path, default=ROOT / "results" / "drift.csv")
+    parser.add_argument("--numbering-csv", type=Path, default=None, help="Numbering map to map mature positions to PDB residue IDs")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "results")
     return parser.parse_args()
 
 
-def build_pml(drift: pd.DataFrame) -> str:
+def build_pml(drift: pd.DataFrame, numbering_map: pd.DataFrame | None = None) -> str:
     seasons = [col for col in drift.columns if col != "mature"]
+    residue_map = {}
+    if numbering_map is not None and not numbering_map.empty:
+        if "mature_index" in numbering_map.columns and "pdb_resi" in numbering_map.columns:
+            residue_map = dict(zip(numbering_map["mature_index"].astype(int), numbering_map["pdb_resi"].astype(int)))
+
     lines = [
         "load 7KNV.pdb, prot",
         "select chainA, chain A",
@@ -39,7 +45,14 @@ def build_pml(drift: pd.DataFrame) -> str:
     ]
 
     for season in seasons:
-        residues = sorted(int(resid) for resid in drift.index if pd.notna(drift.loc[resid, season]) and drift.loc[resid, season] > 0.05)
+        residues = []
+        for mature in drift.index:
+            mature_int = int(mature)
+            score = drift.loc[mature, season]
+            if pd.notna(score) and score > 0.05:
+                pdb_resi = residue_map.get(mature_int, mature_int)
+                residues.append(int(pdb_resi))
+        residues = sorted(set(residues))
         if not residues:
             continue
         residue_list = ", ".join(str(res) for res in residues)
@@ -47,7 +60,6 @@ def build_pml(drift: pd.DataFrame) -> str:
         lines.append(f"color {season_to_color(season)}, {season.replace('-', '_')}")
         lines.append("")
 
-    # Example HA1/HA2 split: edit once a precise HA reference map is validated.
     lines.extend([
         "select head, chainA and resi 1-300",
         "select stem, chainA and resi 301-550",
@@ -88,8 +100,12 @@ def main() -> int:
         raise FileNotFoundError(f"Drift file not found: {drift_path}. Run make variability first.")
 
     drift = pd.read_csv(drift_path, index_col=0)
+    numbering_map = None
+    if args.numbering_csv is not None and args.numbering_csv.exists():
+        numbering_map = pd.read_csv(args.numbering_csv)
+
     out_path = output_dir / "drift.pml"
-    pml = build_pml(drift)
+    pml = build_pml(drift, numbering_map)
     out_path.write_text(pml, encoding="utf-8")
     print(f"Wrote PyMOL file to {out_path}")
     return 0

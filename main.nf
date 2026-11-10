@@ -25,13 +25,16 @@ params {
 
 workflow {
   fetch_ch = Channel.fromList(params.seasons)
-  fetch_files = fetch(fetch_ch)
+  fetched = fetch(fetch_ch)
 
-  selected_files = select(fetch_files.collect())
-  aln = align(selected_files, Channel.fromPath(params.reference))
-  variability_out = variability(aln, Channel.fromPath('data/meta.csv'))
-  pymol(variability_out.map { it[1] })
-  numbering(Channel.fromPath(params.reference))
+  selected = select(fetched.collect())
+  selected_fasta = selected.map { it[0] }
+  selected_meta = selected.map { it[1] }
+
+  aln = align(selected_fasta, Channel.fromPath(params.reference))
+  variability_out = variability(aln, selected_meta)
+  numbering_out = numbering(Channel.fromPath(params.reference))
+  pymol(variability_out.map { it[1] }, numbering_out.map { it[0] })
 }
 
 process fetch {
@@ -42,7 +45,7 @@ process fetch {
   val season
 
   output:
-  path "${season}.faa"
+  tuple path("${season}.faa"), path("${season}_meta.csv")
 
   script:
   """
@@ -50,7 +53,8 @@ process fetch {
     --season ${season} \
     --term "${params.term}" \
     --email "${params.email}" \
-    --output-dir .
+    --output-dir . \
+    --meta-output ${season}_meta.csv
   """
 }
 
@@ -61,7 +65,7 @@ process select {
   path raw_files
 
   output:
-  path 'selected_*.faa'
+  tuple path('selected_*.faa'), path('selected_meta.csv')
 
   script:
   """
@@ -112,13 +116,14 @@ process pymol {
 
   input:
   path drift_csv
+  path numbering_csv
 
   output:
   path 'drift.pml'
 
   script:
   """
-  python3 ${projectDir}/scripts/05_pymol.py --drift-csv ${drift_csv} --output-dir .
+  python3 ${projectDir}/scripts/05_pymol.py --drift-csv ${drift_csv} --numbering-csv ${numbering_csv} --output-dir .
   """
 }
 
@@ -129,8 +134,7 @@ process numbering {
   path ref_fa
 
   output:
-  path 'numbering_map.csv'
-  path 'numbering_check.txt'
+  tuple path('numbering_map.csv'), path('numbering_check.txt')
 
   script:
   """

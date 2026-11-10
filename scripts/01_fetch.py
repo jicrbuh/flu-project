@@ -31,6 +31,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--email", default="", help="Email for Entrez requests")
     parser.add_argument("--retmax", type=int, default=200)
     parser.add_argument("--output-dir", type=Path, default=RAW_DIR, help="Directory for downloaded FASTA files")
+    parser.add_argument("--meta-output", type=Path, default=None, help="Optional metadata CSV path to write for this season")
     return parser.parse_args()
 
 
@@ -80,7 +81,7 @@ def fetch_fasta_records(term: str, email: str, retmax: int = 200) -> list[SeqRec
     return records
 
 
-def write_records(records: list[SeqRecord], season: str, output_dir: Path) -> list[dict]:
+def write_records(records: list[SeqRecord], season: str, output_dir: Path, meta_output: Path | None = None) -> list[dict]:
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{season}.faa"
     rows: list[dict] = []
@@ -90,18 +91,21 @@ def write_records(records: list[SeqRecord], season: str, output_dir: Path) -> li
             fh.write(f">{rec.id}\n{str(rec.seq)}\n")
             desc = rec.description
             strain = desc.split("[")[-1].split("]")[0] if "[" in desc else desc
-            collection_date = "unknown"
-            country = "unknown"
-            passage = "unknown"
-            # The Entrez FASTA description is not uniformly structured; this is just a scaffold.
             row = {
                 "id": rec.id,
                 "strain": strain,
                 "season": season,
-                "passage": passage,
-                "country": country,
+                "passage": "unknown",
+                "country": "unknown",
             }
             rows.append(row)
+
+    meta_output = meta_output or output_dir / f"{season}_meta.csv"
+    meta_output.parent.mkdir(parents=True, exist_ok=True)
+    with meta_output.open("w", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=["id", "strain", "season", "passage", "country"])
+        writer.writeheader()
+        writer.writerows(rows)
 
     return rows
 
@@ -110,10 +114,12 @@ def main() -> int:
     args = parse_args()
 
     records = fetch_fasta_records(args.term, args.email, retmax=args.retmax)
-    rows = write_records(records, args.season, args.output_dir)
+    meta_output = args.meta_output or args.output_dir / f"{args.season}_meta.csv"
+    rows = write_records(records, args.season, args.output_dir, meta_output=meta_output)
     append_meta_rows(rows)
 
     print(f"Fetched {len(records)} records for season {args.season} into {args.output_dir / f'{args.season}.faa'}")
+    print(f"Wrote season metadata to {meta_output}")
     return 0
 
 
