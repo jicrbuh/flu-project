@@ -27,8 +27,10 @@ REF_PATH = ROOT / "data" / "ref" / "ref_A_Missouri_11_2025.faa"
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Compute HA reference-to-PDB numbering.")
     parser.add_argument("--reference", type=Path, default=REF_PATH, help="Reference FASTA path")
-    parser.add_argument("--pdb-id", default="7KNV", help="PDB identifier to fetch from RCSB")
+    parser.add_argument("--pdb-id", default="7KNA", help="PDB identifier to fetch from RCSB")
     parser.add_argument("--chain", default="A", help="PDB chain to use")
+    parser.add_argument("--expected-protein", default="Hemagglutinin", help="Expected protein name in the PDB FASTA header")
+    parser.add_argument("--expected-organism", default="Influenza A virus", help="Expected organism in the PDB FASTA header")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "results", help="Directory to store numbering outputs")
     return parser.parse_args()
 
@@ -40,17 +42,51 @@ def load_reference(path: Path) -> str:
     return str(records[0].seq)
 
 
-def fetch_pdb_fasta(pdb_id: str, chain_id: str = "A") -> str:
+def validate_pdb_record(record, pdb_id: str, chain_id: str, expected_protein: str, expected_organism: str) -> None:
+    label = f"{record.id} {record.description}".upper()
+    description = record.description.upper()
+    protein_ok = expected_protein.upper() in description
+    organism_ok = expected_organism.upper() in description
+    chain_ok = (
+        f"{pdb_id}_{chain_id}".upper() in label
+        or f"CHAIN {chain_id}" in label
+        or f"CHAINS" in label and str(chain_id).upper() in label
+    )
+    if not chain_ok:
+        raise ValueError(f"Fetched record {record.id} did not match PDB {pdb_id} chain {chain_id}")
+    if not protein_ok:
+        raise ValueError(
+            f"PDB {pdb_id} fetched a record whose description does not match expected protein '{expected_protein}': {record.description}"
+        )
+    if not organism_ok:
+        raise ValueError(
+            f"PDB {pdb_id} fetched a record whose description does not match expected organism '{expected_organism}': {record.description}"
+        )
+
+
+def fetch_pdb_fasta(
+    pdb_id: str,
+    chain_id: str = "A",
+    expected_protein: str = "Hemagglutinin",
+    expected_organism: str = "Influenza A virus",
+) -> str:
     url = f"https://www.rcsb.org/fasta/entry/{pdb_id}/display"
     response = requests.get(url, timeout=30)
     response.raise_for_status()
     records = list(SeqIO.parse(StringIO(response.text), "fasta"))
     if not records:
         raise ValueError(f"No FASTA records returned for PDB {pdb_id} from RCSB")
+
+    candidate = None
     for record in records:
         if record.id.startswith(f"{pdb_id}_{chain_id}") or record.id.endswith(f"_{chain_id}"):
-            return str(record.seq)
-    return str(records[0].seq)
+            candidate = record
+            break
+    if candidate is None:
+        candidate = records[0]
+
+    validate_pdb_record(candidate, pdb_id, chain_id, expected_protein, expected_organism)
+    return str(candidate.seq)
 
 
 def build_numbering_map(reference_seq: str, pdb_seq: str) -> list[dict]:
@@ -104,7 +140,12 @@ def main() -> int:
     args = parse_args()
 
     reference_seq = load_reference(args.reference)
-    pdb_seq = fetch_pdb_fasta(args.pdb_id, args.chain)
+    pdb_seq = fetch_pdb_fasta(
+        args.pdb_id,
+        args.chain,
+        expected_protein=args.expected_protein,
+        expected_organism=args.expected_organism,
+    )
     rows = build_numbering_map(reference_seq, pdb_seq)
 
     out_dir = args.output_dir

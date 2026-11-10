@@ -18,8 +18,14 @@ params {
   n_per_season = 10
   seed = 42
   min_length = 200
-  pdb_id = '7KNV'
+  // For future seasons, store the season -> HA structure mapping in a config file or command-line override.
+  season_structure_map = [
+    '2025_26': '7KNA'
+  ]
+  pdb_id = '7KNA'
   chain = 'A'
+  expected_protein = 'Hemagglutinin'
+  expected_organism = 'Influenza A virus'
   reference = 'data/ref/ref_A_Missouri_11_2025.faa'
 }
 
@@ -142,6 +148,8 @@ process numbering {
     --reference ${ref_fa} \
     --pdb-id "${params.pdb_id}" \
     --chain "${params.chain}" \
+    --expected-protein "${params.expected_protein}" \
+    --expected-organism "${params.expected_organism}" \
     --output-dir .
   """
 }

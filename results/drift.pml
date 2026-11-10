@@ -8,8 +8,8 @@ color white, chainA
 # NOTE: populate exact antigenic site residue ranges from a validated HA epitope map.
 # For now this script keeps the region-based color logic and records the trend.
 
-select 2025_26, chainA and resi 63, 64, 67, 68, 70, 71, 72, 73, 74, 75, 77, 80, 81, 82, 83, 84, 85, 86, 87, 88, 90, 91, 92, 93, 94, 95, 96, 100, 101, 102, 104, 106, 107
-color magenta, 2025_26
+select 2025_26, chainA and resi 217, 218, 221, 222, 224, 225, 226, 227, 228, 229, 231, 234, 235, 236, 237, 238, 239, 240, 241, 242, 244, 245, 246, 247, 248, 249, 250, 254, 255, 256, 258, 260, 261
+color blue, 2025_26
 
 select head, chainA and resi 1-300
 select stem, chainA and resi 301-550
