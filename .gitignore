@@ -25,6 +25,9 @@ work/
 .DS_Store
 Thumbs.db
 .vscode/
+__pycache__/
+*.py[cod]
+*.cif
 
 /.quarto/
 **/*.quarto_ipynb

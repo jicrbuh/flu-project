@@ -13,11 +13,10 @@ def loadEntrezEmail() {
 
 params {
   email = loadEntrezEmail()
-  term = 'Influenza A H1N1 hemagglutinin'
-  seasons = ['2025_26']
+  seasons = ['2021_22', '2022_23', '2023_24', '2024_25', '2025_26']
   n_per_season = 10
   seed = 42
-  min_length = 200
+  min_length = 566
   // For future seasons, store the season -> HA structure mapping in a config file or command-line override.
   season_structure_map = [
     '2025_26': '7KNA'
@@ -37,14 +36,16 @@ workflow {
   selected_fasta = selected.map { it[0] }
   selected_meta = selected.map { it[1] }
 
-  aln = align(selected_fasta, Channel.fromPath(params.reference))
+  ref_path = file("${projectDir}/${params.reference}")
+  aln = align(selected_fasta, Channel.fromPath(ref_path))
   variability_out = variability(aln, selected_meta)
-  numbering_out = numbering(Channel.fromPath(params.reference))
+  numbering_out = numbering(Channel.fromPath(ref_path))
   pymol(variability_out.map { it[1] }, numbering_out.map { it[0] })
 }
 
 process fetch {
   tag { season }
+  maxForks 1
   publishDir 'data/raw', mode: 'copy'
 
   input:
@@ -57,7 +58,6 @@ process fetch {
   """
   python3 ${projectDir}/scripts/01_fetch.py \
     --season ${season} \
-    --term "${params.term}" \
     --email "${params.email}" \
     --output-dir . \
     --meta-output ${season}_meta.csv

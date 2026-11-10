@@ -27,7 +27,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Subsample sequences per season.")
     parser.add_argument("--n-per-season", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--min-length", type=int, default=200)
+    parser.add_argument("--min-length", type=int, default=566)
     parser.add_argument("--input-dir", type=Path, default=RAW_DIR, help="Directory with per-season FASTA files")
     parser.add_argument("--output-dir", type=Path, default=SELECTED_DIR, help="Directory for selected sequences")
     return parser.parse_args()
@@ -37,12 +37,14 @@ def iter_raw_files(input_dir: Path) -> list[Path]:
     return sorted(input_dir.glob("*.faa"))
 
 
-def dedupe_and_filter(path: Path, min_length: int = 200) -> list[tuple[str, str]]:
+def dedupe_and_filter(path: Path, min_length: int = 566) -> list[tuple[str, str]]:
     seen: set[str] = set()
     selected: list[tuple[str, str]] = []
     for rec in SeqIO.parse(path, "fasta"):
         seq = str(rec.seq).replace("\n", "")
         if len(seq) < min_length:
+            continue
+        if "X" in seq.upper():
             continue
         if seq in seen:
             continue

@@ -1,11 +1,51 @@
 id,strain,season,passage,country
-CAA91082.1,Influenza A virus (A/Mongolia/111/91 (H1N1)),2025_26,unknown,unknown
-ABS18464.1,Influenza A virus (A/duck/Hong Kong/717/1979 (H1N1)),2025_26,unknown,unknown
-AAA16879.1,Influenza A virus (A/duck/WI/1938/80 (H1N1)),2025_26,unknown,unknown
-BCZ08614.1,Influenza A virus (H1N1),2025_26,unknown,unknown
-BCZ08594.1,Influenza A virus (H1N1),2025_26,unknown,unknown
-BCZ08585.1,Influenza A virus (H1N1),2025_26,unknown,unknown
-BCZ08578.1,Influenza A virus (H1N1),2025_26,unknown,unknown
-BCZ08459.1,Influenza A virus (H1N1),2025_26,unknown,unknown
-BCZ08451.1,Influenza A virus (H1N1),2025_26,unknown,unknown
-BCZ08439.1,Influenza A virus (H1N1),2025_26,unknown,unknown
+OP499844.1,A/Ohio/26/2022,2021_22,passage details:Original,USA: Ohio
+OP210783.1,A/Utah/27/2022,2021_22,passage details:Original,USA: Utah
+OP210775.1,A/Pennsylvania/37/2022,2021_22,passage details:S1 (2022-06-15),USA: Pennsylvania
+OP010262.1,A/West Virginia/21/2022,2021_22,passage details:S1 (2022-05-25),USA: West Virginia
+OP010246.1,A/West Virginia/20/2022,2021_22,passage details:S1 (2022-05-25),USA: West Virginia
+OP010230.1,A/Ohio/03/2021,2021_22,passage details:S1 (2021-10-27),USA: Ohio
+OP010206.1,A/California/90/2022,2021_22,passage details:Original,USA: California
+ON369675.1,A/New York/04/2022,2021_22,passage details:S1 (2022-03-09),USA: New York
+ON369659.1,A/Michigan/19/2021,2021_22,passage details:S1 (2021-12-15),USA: Michigan
+OM691448.1,A/San Diego/890787/2021,2021_22,unknown,"USA: California, San Diego"
+OR517298.1,A/China/H1N1-47/2023,2022_23,unknown,China
+OR006918.1,A/California/33/2023,2022_23,passage details:Original,USA: California
+OR014350.1,A/Iowa/12/2023,2022_23,passage details:Original,USA: Iowa
+OR008755.1,A/Washington/24/2023,2022_23,passage details:Original,USA: Washington
+OR008316.1,A/New Mexico/32/2023,2022_23,passage details:S1 (2023-03-29),USA: New Mexico
+OR007062.1,A/Iowa/25/2023,2022_23,passage details:S1 (2023-03-08),USA: Iowa
+OR006413.1,A/Virginia/08/2023,2022_23,passage details:S1 (2023-01-25),USA: Virginia
+OR005951.1,A/Iowa/09/2023,2022_23,passage details:Original,USA: Iowa
+OQ661977.1,A/Connecticut/02/2023,2022_23,passage details:Original,USA: Connecticut
+OQ203518.1,A/New York/22/2022,2022_23,passage details:Original,USA: New York
+PQ070908.1,A/California/GKISBBBB94968/2024,2023_24,unknown,USA: California
+PP730439.1,A/New York City/PV100341/2023,2023_24,"passage_history:Sequence was derived directly from the original sample material. PCR_primers=rev_name: rev3, rev_seq: gttacgcgccagtagaaacaa",USA
+PP815527.1,A/USA/WA-UW-67618/2024,2023_24,unknown,USA: Washington
+PP468752.1,A/USA/WA-UW-33325/2024,2023_24,unknown,USA: Washington
+PQ260330.1,A/Michigan/110/2024,2023_24,passage details:S1 (2024-07-03),USA: Michigan
+PQ257880.1,A/Illinois/43/2024,2023_24,passage details:Original,USA: Illinois
+PQ257122.1,A/Pennsylvania/25/2024,2023_24,passage details:Original,USA: Pennsylvania
+PQ254829.1,A/New Hampshire/46/2024,2023_24,passage details:S1 (2024-04-10),USA: New Hampshire
+PP656073.1,A/New Jersey/63/2023,2023_24,passage details:S1 (2024-01-10),USA: New Jersey
+PP638158.1,A/Vermont/21/2023,2023_24,passage details:S1 (2023-12-06),USA: Vermont
+PV550561.1,A/Virginia/GKISBBBE73203/2025,2024_25,unknown,USA: Virginia
+PV271703.1,A/New Jersey/GKISBBBE66510/2025,2024_25,unknown,USA: New Jersey
+PX427541.1,A/California/LACPHL-INF02026/2025,2024_25,unknown,USA: California
+PX399861.1,A/New York City/PX22199/2025,2024_25,"passage_history:Sequence was derived directly from the original sample material. PCR_primers=fwd_name: fwd1, fwd_seq: gttacgcgccagcaaaagcagg",USA
+PX260363.1,A/New Jersey/V25002321/2025,2024_25,unknown,USA: New Jersey
+PX269622.1,A/Michigan/MIS-011719364/2025,2024_25,unknown,USA: Michigan
+PX265230.1,A/Michigan/MIS-L386177816/2025,2024_25,unknown,USA: Michigan
+PX263619.1,A/Michigan/MIS-RR056665541/2025,2024_25,unknown,USA: Michigan
+PX258512.1,A/Iowa/94/2025,2024_25,passage details:Original,USA: Iowa
+PV888278.1,A/Human/New York City/PX18587/2025,2024_25,"passage_history:Sequence was derived directly from the original sample material. PCR_primers=fwd_name: fwd1, fwd_seq: gttacgcgccagcaaaagcagg",USA
+QB045440.1,A/Washington/WA-UW-48112/2026,2025_26,unknown,USA: Washington
+PZ990134.1,A/Florida/ISC-1136/2026,2025_26,passage details:Original,USA: Florida
+PZ990014.1,A/Florida/ISC-1023/2026,2025_26,passage details:Original,USA: Florida
+PZ989755.1,A/Massachusetts/ISC-1146/2026,2025_26,passage details:Original,USA: Massachusetts
+PZ985637.1,A/New Jersey/32/2026,2025_26,passage details:Original,USA: New Jersey
+PZ985411.1,A/Nebraska/67/2026,2025_26,passage details:Original,USA: Nebraska
+PZ985133.1,A/Maine/57/2026,2025_26,passage details:Original,USA: Maine
+PZ903902.1,A/Tennessee/NIRC-AV-1012/2025,2025_26,passage details:Original,USA: Tennessee
+PZ252053.1,A/California/LACPHL-INF02493/2026,2025_26,unknown,USA: California
+PZ133959.1,A/Virginia/GKISBBBI66564/2026,2025_26,unknown,USA: Virginia
