@@ -1,33 +1,41 @@
-load 7KNV.pdb, prot
-select chainA, chain A
+fetch 7KNA, async=0
 hide everything, all
-show cartoon, chainA
-show sticks, chainA
-color white, chainA
+show cartoon, 7KNA
+color white, 7KNA
 
-# NOTE: populate exact antigenic site residue ranges from a validated HA epitope map.
-# For now this script keeps the region-based color logic and records the trend.
+# The residue list below is derived from the mature HA numbering in the drift table and
+# then translated to PDB numbering using numbering_map.csv where available.
+# Use the count_atoms check below to confirm the selection contains modeled residues.
 
-select 2021_22, chainA and resi 19, 54, 96, 113, 120, 130, 137, 142, 156, 161, 173, 186, 187, 207, 216, 224, 250, 259, 260, 270, 277, 308, 356, 372, 399, 418, 451, 454, 460, 506, 510, 520
-color yellow, 2021_22
+select s202122, 7KNA and chain A and name CA and resi 19+54+96+113+120+130+137+142+156+161+173+186+187+207+216+224+250+259+260+270+277+308+356+372+399+418+451+454+460+506+510+520
+show spheres, s202122
+color green, s202122
+print('count_atoms s202122: %d' % cmd.count_atoms('s202122'))
 
-select 2022_23, chainA and resi 19, 39, 61, 73, 97, 120, 125, 137, 138, 141, 142, 152, 173, 184, 186, 190, 195, 216, 260, 277, 278, 308, 321, 356, 372, 411, 418, 451, 455, 460, 500, 513, 520
-color red, 2022_23
+select s202223, 7KNA and chain A and name CA and resi 39+48+96+108+113+120+135+137+142+152+216+241+256+260+274+277+308+356+372+418+427+451+460+485+520
+show spheres, s202223
+color yellow, s202223
+print('count_atoms s202223: %d' % cmd.count_atoms('s202223'))
 
-select 2023_24, chainA and resi 38, 44, 45, 47, 85, 94, 96, 113, 120, 137, 142, 146, 169, 216, 260, 277, 286, 302, 326, 356, 372, 418, 427, 451, 460, 474, 520, 527, 533
-color gray, 2023_24
+select s202324, 7KNA and chain A and name CA and resi 45+47+68+86+120+137+142+169+216+260+277+286+329+356+372+451+460+474+501+510+511+520+527+549
+show spheres, s202324
+color gray, s202324
+print('count_atoms s202324: %d' % cmd.count_atoms('s202324'))
 
-select 2024_25, chainA and resi 36, 57, 66, 82, 83, 113, 119, 137, 141, 142, 166, 169, 186, 216, 260, 262, 277, 323, 324, 356, 372, 394, 450, 451, 455, 460, 468, 503, 510, 520
-color orange, 2024_25
+select s202425, 7KNA and chain A and name CA and resi 45+83+113+137+138+142+152+166+169+216+260+262+273+277+356+372+451+454+460+472+496+510+520
+show spheres, s202425
+color magenta, s202425
+print('count_atoms s202425: %d' % cmd.count_atoms('s202425'))
 
-select 2025_26, chainA and resi 30, 36, 57, 110, 113, 139, 141, 146, 205, 260, 277, 283, 302, 333, 451, 458, 496, 500
-color cyan, 2025_26
+select s202526, 7KNA and chain A and name CA and resi 45+48+68+113+139+141+152+155+169+283+302+383+462
+show spheres, s202526
+color blue, s202526
+print('count_atoms s202526: %d' % cmd.count_atoms('s202526'))
 
-select head, chainA and resi 1-300
-select stem, chainA and resi 301-550
-color lightblue, head
-color orange, stem
+
+# Domain coloring is intentionally kept minimal and should be validated against a published
+# HA domain definition before publication. The season-specific residue selections are the primary output.
 
 set cartoon_transparency, 0.2
-set sphere_scale, 0.25
+set sphere_scale, 0.6
 dss

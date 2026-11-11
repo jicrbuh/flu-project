@@ -2,29 +2,40 @@
 title: "Project overview"
 ---
 
-This project maps influenza HA sequence drift across seasons onto a structural model, with the goal of checking whether variable residues cluster in the head region or remain concentrated in conserved stem sites.
+This project tracks influenza HA sequence drift across seasons and maps the resulting variability onto a structural model. The goal is to determine whether residues that vary between seasons are concentrated in the exposed HA head or remain in more conserved stem regions.
 
 ## What the project does
 
-The workflow starts from a reference HA sequence and then:
+The workflow starts from a validated reference HA sequence and then:
 
-1. fetches seasonal HA records,
-2. filters and subsamples sequences,
-3. aligns them to the reference,
-4. measures reference-anchored variability by position and season,
-5. writes a PyMOL-ready residue map for structural inspection.
+1. fetches seasonal human H1N1 HA records from GenBank,
+2. filters and subsamples the records by season and sequence quality,
+3. aligns the selected sequences to the reference,
+4. computes reference-anchored variability and season-specific drift,
+5. maps the reference positions to the PDB numbering scheme, and
+6. writes a PyMOL script for structural inspection.
 
 The analysis is organized around a few key outputs:
 
-- `data/ref/` for the reference sequence
-- `data/raw/` for fetched sequence pulls
-- `data/meta.csv` for metadata such as season, passage, and strain
-- `results/` for alignment, variability tables, and PyMOL output
+- `data/ref/` for the reference HA sequence
+- `data/raw/` for per-season fetched FASTA and metadata outputs
+- `data/selected/` for filtered, deduplicated, and subsampled sequence sets
+- `results/` for alignment, variability tables, numbering maps, and PyMOL output
 - `scripts/` for each analysis stage
+
+## Current workflow parameters
+
+The pipeline is configured in [main.nf](main.nf) with:
+
+- five seasonal windows: `2021_22`, `2022_23`, `2023_24`, `2024_25`, and `2025_26`
+- a strict HA length threshold of `566` aa
+- a `7KNA` PDB target for the reference-to-structure numbering step
+- a reference sequence stored at `data/ref/ref_A_Missouri_11_2025.faa`
+- a required NCBI Entrez email for fetching records
 
 ## How to run it
 
-Create a local environment file for your NCBI Entrez email:
+Create a local environment file for your Entrez email:
 
 ```bash
 cp .env.example .env
@@ -42,19 +53,22 @@ Run the pipeline:
 nextflow run main.nf -resume
 ```
 
-A fresh run is:
+A clean rerun, which is the safest option after changing fetch logic, filters, or the reference sequence, is:
 
 ```bash
-nextflow clean -f
+rm -rf .nextflow work data/raw data/selected results
 nextflow run main.nf
 ```
 
+This clears the Nextflow cache and the generated data products so the workflow starts from a truly fresh state.
+
 ## Important notes
 
-- The actual project source files are tracked in Git.
-- Generated output such as `data/raw/`, `data/selected/`, `.quarto/`, and `_site/` are ignored.
-- The reference-to-PDB numbering step is deliberately treated as an early checkpoint because incorrect residue numbering can invalidate the rest of the analysis.
-- This project is intentionally staged as a reproducible pipeline: each script is a step, and rerunning the workflow reuses cached results when inputs have not changed.
+- Generated data such as `data/raw/`, `data/selected/`, `.quarto/`, `_site/`, and `.nextflow/` are ignored in Git.
+- The project uses per-season fetch outputs rather than a single global metadata file, which avoids stale record accumulation and makes each season traceable.
+- The reference-to-PDB numbering step is treated as a verification checkpoint because incorrect residue mapping can invalidate the downstream drift analysis.
+- The reference sequence is intentionally full-length HA and is validated before alignment.
+- This project is built as a reproducible pipeline: each script is a step, and a clean rerun is the safe way to confirm that the underlying sequence set and metadata are valid.
 
 ## Main workflow files
 

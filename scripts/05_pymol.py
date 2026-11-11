@@ -20,27 +20,29 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Create a PyMOL session script from the drift summary.")
     parser.add_argument("--drift-csv", type=Path, default=ROOT / "results" / "drift.csv")
     parser.add_argument("--numbering-csv", type=Path, default=None, help="Numbering map to map mature positions to PDB residue IDs")
+    parser.add_argument("--pdb-id", default="7KNA", help="PDB identifier to load in PyMOL")
+    parser.add_argument("--chain", default="A", help="PDB chain to select and color")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "results")
     return parser.parse_args()
 
 
-def build_pml(drift: pd.DataFrame, numbering_map: pd.DataFrame | None = None) -> str:
+def build_pml(drift: pd.DataFrame, numbering_map: pd.DataFrame | None = None, pdb_id: str = "7KNA", chain: str = "A") -> str:
     seasons = [col for col in drift.columns if col != "mature"]
     residue_map = {}
     if numbering_map is not None and not numbering_map.empty:
         if "mature_index" in numbering_map.columns and "pdb_resi" in numbering_map.columns:
             residue_map = dict(zip(numbering_map["mature_index"].astype(int), numbering_map["pdb_resi"].astype(int)))
 
+    chain_id = chain.upper()
     lines = [
-        "load 7KNV.pdb, prot",
-        "select chainA, chain A",
+        f"fetch {pdb_id}, async=0",
         "hide everything, all",
-        "show cartoon, chainA",
-        "show sticks, chainA",
-        "color white, chainA",
+        f"show cartoon, {pdb_id}",
+        f"color white, {pdb_id}",
         "",
-        "# NOTE: populate exact antigenic site residue ranges from a validated HA epitope map.",
-        "# For now this script keeps the region-based color logic and records the trend.",
+        "# The residue list below is derived from the mature HA numbering in the drift table and",
+        "# then translated to PDB numbering using numbering_map.csv where available.",
+        "# Use the count_atoms check below to confirm the selection contains modeled residues.",
         "",
     ]
 
@@ -55,19 +57,21 @@ def build_pml(drift: pd.DataFrame, numbering_map: pd.DataFrame | None = None) ->
         residues = sorted(set(residues))
         if not residues:
             continue
-        residue_list = ", ".join(str(res) for res in residues)
-        lines.append(f"select {season.replace('-', '_')}, chainA and resi {residue_list}")
-        lines.append(f"color {season_to_color(season)}, {season.replace('-', '_')}")
+        sel_name = to_pymol_selection_name(season)
+        residue_list = "+".join(str(res) for res in residues)
+        lines.append(f"select {sel_name}, {pdb_id} and chain {chain_id} and name CA and resi {residue_list}")
+        lines.append(f"show spheres, {sel_name}")
+        lines.append(f"color {season_to_color(season)}, {sel_name}")
+        lines.append(f"print('count_atoms {sel_name}: %d' % cmd.count_atoms('{sel_name}'))")
         lines.append("")
 
     lines.extend([
-        "select head, chainA and resi 1-300",
-        "select stem, chainA and resi 301-550",
-        "color lightblue, head",
-        "color orange, stem",
+        "",
+        "# Domain coloring is intentionally kept minimal and should be validated against a published",
+        "# HA domain definition before publication. The season-specific residue selections are the primary output.",
         "",
         "set cartoon_transparency, 0.2",
-        "set sphere_scale, 0.25",
+        "set sphere_scale, 0.6",
         "dss",
     ])
     return "\n".join(lines) + "\n"
@@ -90,6 +94,14 @@ def season_to_color(season: str) -> str:
     return palette[idx]
 
 
+def to_pymol_selection_name(season: str) -> str:
+    name = season.replace("-", "").replace("_", "")
+    name = ''.join(ch for ch in name if ch.isalnum())
+    if not name:
+        return "s"
+    return f"s{name}"
+
+
 def main() -> int:
     args = parse_args()
     drift_path = args.drift_csv
@@ -105,7 +117,7 @@ def main() -> int:
         numbering_map = pd.read_csv(args.numbering_csv)
 
     out_path = output_dir / "drift.pml"
-    pml = build_pml(drift, numbering_map)
+    pml = build_pml(drift, numbering_map, pdb_id=args.pdb_id, chain=args.chain)
     out_path.write_text(pml, encoding="utf-8")
     print(f"Wrote PyMOL file to {out_path}")
     return 0

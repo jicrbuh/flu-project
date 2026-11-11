@@ -21,7 +21,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--season", required=True, help="Season label, e.g. 2024_25")
     parser.add_argument("--email", required=True, help="Email for Entrez requests")
     parser.add_argument("--output-dir", default=".", type=Path, help="Directory for the season FASTA and metadata")
-    parser.add_argument("--retmax", type=int, default=3000, help="Maximum number of records to keep")
+    # Keep the initial fetch budget small for development work; we can raise this later if we
+    # need broader seasonal coverage or more sequence diversity for a given season.
+    parser.add_argument("--retmax", type=int, default=100, help="Maximum number of records to fetch before final filtering")
     parser.add_argument("--term", default=None, help="Optional override for the Entrez search term")
     parser.add_argument("--meta-output", default=None, type=Path, help="Optional explicit metadata path to write for this season")
     return parser.parse_args()
@@ -45,7 +47,7 @@ def build_default_term(season: str) -> str:
     year0, start, end = parse_season(season)
     return (
         '"Influenza A virus"[Organism] AND H1N1[All Fields] AND hemagglutinin[All Fields] '
-        f'AND {start.strftime("%Y/%m/%d")}:{end.strftime("%Y/%m/%d")}[PDAT]'
+        f'AND Homo sapiens[All Fields] AND {start.strftime("%Y/%m/%d")}:{end.strftime("%Y/%m/%d")}[PDAT]'
     )
 
 
