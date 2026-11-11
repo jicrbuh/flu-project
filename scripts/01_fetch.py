@@ -10,10 +10,16 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 from pathlib import Path
 
 import pandas as pd
 from Bio import Entrez, SeqIO
+
+
+ENTREZ_FETCH_BATCH_SIZE = 200
+ENTREZ_RET_TYPE = "gb"
+ENTREZ_RET_MODE = "text"
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,53 +57,6 @@ def build_default_term(season: str) -> str:
     )
 
 
-def fetch_records(term: str, email: str, retmax: int = 3000) -> tuple[list[str], str]:
-    Entrez.email = email
-    Entrez.api_key = None
-
-    search = Entrez.esearch(db="nuccore", term=term, usehistory="y", retmax=0)
-    result = Entrez.read(search)
-    count = min(int(result.get("Count", 0)), retmax)
-    if count == 0:
-        return [], result.get("WebEnv", "")
-
-    webenv = result.get("WebEnv", "")
-    query_key = result.get("QueryKey", "")
-    ids: list[str] = []
-    for start in range(0, count, 200):
-        handle = Entrez.efetch(
-            db="nuccore",
-            rettype="gb",
-            retmode="text",
-            retstart=start,
-            retmax=200,
-            webenv=webenv,
-            query_key=query_key,
-        )
-        records = list(SeqIO.parse(handle, "gb"))
-        ids.extend(rec.id for rec in records)
-    return ids, webenv
-
-
-def fetch_by_id(record_ids: list[str], webenv: str, email: str) -> list:
-    Entrez.email = email
-    if not record_ids:
-        return []
-
-    chunks: list[list[str]] = [record_ids[i : i + 200] for i in range(0, len(record_ids), 200)]
-    records: list = []
-    for chunk in chunks:
-        handle = Entrez.efetch(
-            db="nuccore",
-            id=",".join(chunk),
-            rettype="gb",
-            retmode="text",
-            webenv=webenv,
-        )
-        records.extend(list(SeqIO.parse(handle, "gb")))
-    return records
-
-
 def main() -> int:
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -106,6 +65,8 @@ def main() -> int:
     year0, start_date, end_date = parse_season(args.season)
 
     Entrez.email = args.email
+    Entrez.api_key = os.environ.get("NCBI_API_KEY")
+
     search = Entrez.esearch(db="nuccore", term=term, usehistory="y", retmax=0)
     result = Entrez.read(search)
     count = min(int(result.get("Count", 0)), args.retmax)
@@ -121,17 +82,18 @@ def main() -> int:
 
         webenv = result.get("WebEnv", "")
         query_key = result.get("QueryKey", "")
-        for start in range(0, count, 200):
+        for start in range(0, count, ENTREZ_FETCH_BATCH_SIZE):
+            remaining = min(ENTREZ_FETCH_BATCH_SIZE, count - start)
             fetch_handle = Entrez.efetch(
                 db="nuccore",
-                rettype="gb",
-                retmode="text",
+                rettype=ENTREZ_RET_TYPE,
+                retmode=ENTREZ_RET_MODE,
                 retstart=start,
-                retmax=200,
+                retmax=remaining,
                 webenv=webenv,
                 query_key=query_key,
             )
-            for rec in SeqIO.parse(fetch_handle, "gb"):
+            for rec in SeqIO.parse(fetch_handle, ENTREZ_RET_TYPE):
                 source = next((feat.qualifiers for feat in rec.features if feat.type == "source"), {})
                 cds = next((feat for feat in rec.features if feat.type == "CDS"), None)
                 if cds is None or "translation" not in cds.qualifiers:
