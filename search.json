@@ -1,0 +1,296 @@
+[
+  {
+    "objectID": "project-overview.html",
+    "href": "project-overview.html",
+    "title": "Project overview",
+    "section": "",
+    "text": "This project tracks influenza HA sequence drift across seasons and maps the resulting variability onto a structural model. The goal is to determine whether residues that vary between seasons are concentrated in the exposed HA head or remain in more conserved stem regions."
+  },
+  {
+    "objectID": "project-overview.html#what-the-project-does",
+    "href": "project-overview.html#what-the-project-does",
+    "title": "Project overview",
+    "section": "What the project does",
+    "text": "What the project does\nThe workflow starts from a validated reference HA sequence and then:\n\nfetches seasonal human H1N1 HA records from GenBank,\nfilters and subsamples the records by season and sequence quality,\naligns the selected sequences to the reference,\ncomputes reference-anchored variability and season-specific drift,\nmaps the reference positions to the PDB numbering scheme, and\nwrites a PyMOL script for structural inspection.\n\nThe analysis is organized around a few key outputs:\n\ndata/ref/ for the reference HA sequence\ndata/raw/ for per-season fetched FASTA and metadata outputs\ndata/selected/ for filtered, deduplicated, and subsampled sequence sets\nresults/ for alignment, variability tables, numbering maps, and PyMOL output\nscripts/ for each analysis stage"
+  },
+  {
+    "objectID": "project-overview.html#current-workflow-parameters",
+    "href": "project-overview.html#current-workflow-parameters",
+    "title": "Project overview",
+    "section": "Current workflow parameters",
+    "text": "Current workflow parameters\nThe pipeline is configured in main.nf with:\n\nfive seasonal windows: 2021_22, 2022_23, 2023_24, 2024_25, and 2025_26\na strict HA length threshold of 566 aa\na 7KNA PDB target for the reference-to-structure numbering step\na reference sequence stored at data/ref/ref_A_Missouri_11_2025.faa\na required NCBI Entrez email for fetching records"
+  },
+  {
+    "objectID": "project-overview.html#how-to-run-it",
+    "href": "project-overview.html#how-to-run-it",
+    "title": "Project overview",
+    "section": "How to run it",
+    "text": "How to run it\nCreate a local environment file for your Entrez email:\ncp .env.example .env\nThen edit .env and set:\nENTREZ_EMAIL=your-email@example.com\nRun the pipeline:\nnextflow run main.nf -resume\nA clean rerun, which is the safest option after changing fetch logic, filters, or the reference sequence, is:\nrm -rf .nextflow work data/raw data/selected results\nnextflow run main.nf\nThis clears the Nextflow cache and the generated data products so the workflow starts from a truly fresh state."
+  },
+  {
+    "objectID": "project-overview.html#important-notes",
+    "href": "project-overview.html#important-notes",
+    "title": "Project overview",
+    "section": "Important notes",
+    "text": "Important notes\n\nGenerated data such as data/raw/, data/selected/, .quarto/, _site/, and .nextflow/ are ignored in Git.\nThe project uses per-season fetch outputs rather than a single global metadata file, which avoids stale record accumulation and makes each season traceable.\nThe reference-to-PDB numbering step is treated as a verification checkpoint because incorrect residue mapping can invalidate the downstream drift analysis.\nThe reference sequence is intentionally full-length HA and is validated before alignment.\nThis project is built as a reproducible pipeline: each script is a step, and a clean rerun is the safe way to confirm that the underlying sequence set and metadata are valid."
+  },
+  {
+    "objectID": "project-overview.html#main-workflow-files",
+    "href": "project-overview.html#main-workflow-files",
+    "title": "Project overview",
+    "section": "Main workflow files",
+    "text": "Main workflow files\n\nmain.nf\nscripts/01_fetch.py\nscripts/02_select.py\nscripts/03_numbering.py\nscripts/04_variability.py\nscripts/05_pymol.py"
+  },
+  {
+    "objectID": "structural-validation-notes.html",
+    "href": "structural-validation-notes.html",
+    "title": "Structural validation notes for the HA drift view",
+    "section": "",
+    "text": "This note records the main issues we found while validating the PyMOL output against the 7KNA structure and the drift table.\n\n\nThe drift file is generated and non-empty. We confirmed that results/drift.csv contains real seasonal drift values and multiple nonzero per-season positions.\nThat means the underlying per-residue drift analysis is operationally valid. However, the downstream structural view is a rendering layer and must still be validated against the actual modeled structure.\n\n\n\nThe generated PyMOL script originally used comma-separated residue syntax such as:\nresi 19, 54, 96\nPyMOL expects residue lists written as:\nresi 19+54+96\nThis was a real syntax bug. It can silently drop many residues or fail to select them as intended.\n\n\n\nThe script originally selected whole residues rather than alpha-carbons. For a clear atom-level visualization, the selection should be restricted to name CA:\n7KNA and chain A and name CA and resi 19+54+96\nThis matters because the expected number of visible atoms should match the actual modeled atoms in the structure, and not all drift residues are necessarily modeled.\n\n\n\nThe broad domain coloring step was applied after the drift selections, so the HA head and stem color assignments could cover the same atoms and hide the season-specific drift colors.\nThis is a rendering issue, not a drift computation issue. The season-specific drift colors should be the primary viewpoint and any broad domain coloring should be used carefully and clearly as a background annotation.\n\n\n\nThe original split:\nhead = resi 1-300\nstem = resi 301-550\nis too crude for a real HA structural interpretation. HA domain boundaries and the PDB numbering layout do not necessarily align with a simple 1–300 / 301–550 split. This was only a rough visual helper, not a scientifically supported domain assignment.\n\n\n\nThe live PyMOL check showed warnings such as:\nAssignSS-Warning: Ignoring incomplete residue /7KNA/C/C/795 ...\nThis indicates that the structure includes incomplete residues and that chain C continues beyond the expected HA mature residue range. That means the model is not a clean single-chain HA ectodomain with a trivial 1–550 numbering map.\nThis is important because the script assumes the residue numbering corresponds cleanly to the mature HA residues used in the drift analysis.\n\n\n\nThe drift table is in mature HA numbering, and the structural rendering only makes sense if the numbers are correctly translated to PDB numbering. The mapping in results/numbering_map.csv must be checked against the atomic model.\nThis should be done by comparing:\n\nthe residues in 7KNA and chain A and name CA\nthe translated mature-to-PDB mapping in numbering_map.csv\nthe expected Missouri residue identities at the relevant drift positions\n\nUntil that identity check is done, the structure rendering should be treated as a visual scaffold, not as a confirmed biological mapping.\n\n\n\nThe live PyMOL CA counts for the seasonal selections were lower than the number of positions in the drift table. For example, the season selection counts were roughly 25, 18, 19, 17, and 11 CA atoms instead of the full drift counts in the CSV.\nThis tells us that many of the drift positions are either:\n\nnot in the PDB model,\nnot present in the selected chain,\nnot present as modeled CA atoms,\nor not part of the HA ectodomain represented by this PDB entry.\n\nA structural visualization must account for that before it is interpreted as a biological distribution.\n\n\n\nThe current PyMOL view is useful for:\n\nconfirming that the script is executing,\nconfirming that residue selections are being created,\nchecking whether the selected positions fall on the modeled HA body,\nidentifying that some positions are in the head and others in the stem-like region.\n\nIt is not yet enough to support a publication claim about drift distribution without:\n\nan explicit chain/domain validation,\na residue-by-residue match to the numbered model,\na clear exclusion of non-modeled positions,\nand a proper domain definition.\n\n\n\n\nThe right next move is not to call the PyMOL result “done.” Instead, the next step is to create a strict structural validation:\n\nprint the CA range of the relevant chain,\ncompare it against the mature numbering map,\ncount atoms in each seasonal selection,\nexclude or mark residues that are not modeled,\nthen generate the final visual only after the model identity is confirmed.\n\nThis is the needed epistemic check before the draft should present the structural picture as a real biological result."
+  },
+  {
+    "objectID": "structural-validation-notes.html#the-drift-data-is-real-but-the-visual-is-not-yet-a-validated-biological-result",
+    "href": "structural-validation-notes.html#the-drift-data-is-real-but-the-visual-is-not-yet-a-validated-biological-result",
+    "title": "Structural validation notes for the HA drift view",
+    "section": "",
+    "text": "The drift file is generated and non-empty. We confirmed that results/drift.csv contains real seasonal drift values and multiple nonzero per-season positions.\nThat means the underlying per-residue drift analysis is operationally valid. However, the downstream structural view is a rendering layer and must still be validated against the actual modeled structure."
+  },
+  {
+    "objectID": "structural-validation-notes.html#pymol-selection-syntax-was-wrong",
+    "href": "structural-validation-notes.html#pymol-selection-syntax-was-wrong",
+    "title": "Structural validation notes for the HA drift view",
+    "section": "",
+    "text": "The generated PyMOL script originally used comma-separated residue syntax such as:\nresi 19, 54, 96\nPyMOL expects residue lists written as:\nresi 19+54+96\nThis was a real syntax bug. It can silently drop many residues or fail to select them as intended."
+  },
+  {
+    "objectID": "structural-validation-notes.html#selections-were-not-restricted-to-ca-atoms",
+    "href": "structural-validation-notes.html#selections-were-not-restricted-to-ca-atoms",
+    "title": "Structural validation notes for the HA drift view",
+    "section": "",
+    "text": "The script originally selected whole residues rather than alpha-carbons. For a clear atom-level visualization, the selection should be restricted to name CA:\n7KNA and chain A and name CA and resi 19+54+96\nThis matters because the expected number of visible atoms should match the actual modeled atoms in the structure, and not all drift residues are necessarily modeled."
+  },
+  {
+    "objectID": "structural-validation-notes.html#the-seasonal-colors-were-overwritten-by-the-final-domain-coloring",
+    "href": "structural-validation-notes.html#the-seasonal-colors-were-overwritten-by-the-final-domain-coloring",
+    "title": "Structural validation notes for the HA drift view",
+    "section": "",
+    "text": "The broad domain coloring step was applied after the drift selections, so the HA head and stem color assignments could cover the same atoms and hide the season-specific drift colors.\nThis is a rendering issue, not a drift computation issue. The season-specific drift colors should be the primary viewpoint and any broad domain coloring should be used carefully and clearly as a background annotation."
+  },
+  {
+    "objectID": "structural-validation-notes.html#the-headstem-split-was-not-biologically-validated",
+    "href": "structural-validation-notes.html#the-headstem-split-was-not-biologically-validated",
+    "title": "Structural validation notes for the HA drift view",
+    "section": "",
+    "text": "The original split:\nhead = resi 1-300\nstem = resi 301-550\nis too crude for a real HA structural interpretation. HA domain boundaries and the PDB numbering layout do not necessarily align with a simple 1–300 / 301–550 split. This was only a rough visual helper, not a scientifically supported domain assignment."
+  },
+  {
+    "objectID": "structural-validation-notes.html#the-pdb-structure-is-not-a-simple-ha-only-ectodomain-in-a-single-clean-chain",
+    "href": "structural-validation-notes.html#the-pdb-structure-is-not-a-simple-ha-only-ectodomain-in-a-single-clean-chain",
+    "title": "Structural validation notes for the HA drift view",
+    "section": "",
+    "text": "The live PyMOL check showed warnings such as:\nAssignSS-Warning: Ignoring incomplete residue /7KNA/C/C/795 ...\nThis indicates that the structure includes incomplete residues and that chain C continues beyond the expected HA mature residue range. That means the model is not a clean single-chain HA ectodomain with a trivial 1–550 numbering map.\nThis is important because the script assumes the residue numbering corresponds cleanly to the mature HA residues used in the drift analysis."
+  },
+  {
+    "objectID": "structural-validation-notes.html#the-numbering-map-must-be-validated-against-the-actual-model-before-trusting-any-residue-position",
+    "href": "structural-validation-notes.html#the-numbering-map-must-be-validated-against-the-actual-model-before-trusting-any-residue-position",
+    "title": "Structural validation notes for the HA drift view",
+    "section": "",
+    "text": "The drift table is in mature HA numbering, and the structural rendering only makes sense if the numbers are correctly translated to PDB numbering. The mapping in results/numbering_map.csv must be checked against the atomic model.\nThis should be done by comparing:\n\nthe residues in 7KNA and chain A and name CA\nthe translated mature-to-PDB mapping in numbering_map.csv\nthe expected Missouri residue identities at the relevant drift positions\n\nUntil that identity check is done, the structure rendering should be treated as a visual scaffold, not as a confirmed biological mapping."
+  },
+  {
+    "objectID": "structural-validation-notes.html#many-residue-positions-are-not-actually-present-in-the-modeled-structure",
+    "href": "structural-validation-notes.html#many-residue-positions-are-not-actually-present-in-the-modeled-structure",
+    "title": "Structural validation notes for the HA drift view",
+    "section": "",
+    "text": "The live PyMOL CA counts for the seasonal selections were lower than the number of positions in the drift table. For example, the season selection counts were roughly 25, 18, 19, 17, and 11 CA atoms instead of the full drift counts in the CSV.\nThis tells us that many of the drift positions are either:\n\nnot in the PDB model,\nnot present in the selected chain,\nnot present as modeled CA atoms,\nor not part of the HA ectodomain represented by this PDB entry.\n\nA structural visualization must account for that before it is interpreted as a biological distribution."
+  },
+  {
+    "objectID": "structural-validation-notes.html#the-view-is-useful-as-a-check-but-not-as-a-result",
+    "href": "structural-validation-notes.html#the-view-is-useful-as-a-check-but-not-as-a-result",
+    "title": "Structural validation notes for the HA drift view",
+    "section": "",
+    "text": "The current PyMOL view is useful for:\n\nconfirming that the script is executing,\nconfirming that residue selections are being created,\nchecking whether the selected positions fall on the modeled HA body,\nidentifying that some positions are in the head and others in the stem-like region.\n\nIt is not yet enough to support a publication claim about drift distribution without:\n\nan explicit chain/domain validation,\na residue-by-residue match to the numbered model,\na clear exclusion of non-modeled positions,\nand a proper domain definition."
+  },
+  {
+    "objectID": "structural-validation-notes.html#recommended-next-step",
+    "href": "structural-validation-notes.html#recommended-next-step",
+    "title": "Structural validation notes for the HA drift view",
+    "section": "",
+    "text": "The right next move is not to call the PyMOL result “done.” Instead, the next step is to create a strict structural validation:\n\nprint the CA range of the relevant chain,\ncompare it against the mature numbering map,\ncount atoms in each seasonal selection,\nexclude or mark residues that are not modeled,\nthen generate the final visual only after the model identity is confirmed.\n\nThis is the needed epistemic check before the draft should present the structural picture as a real biological result."
+  },
+  {
+    "objectID": "checklist.html",
+    "href": "checklist.html",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Goal: map hemagglutinin (HA) sequence changes across seasons onto a 3D structure, check whether they cluster at antibody epitopes (head) vs conserved regions (stem). Same skills as the pembrolizumab project, antigen side.\nRelated: Compugen role\n\n\n\nRead WHO 2026-27 NH recommendation (27 Feb 2026) — done — strains: A/Missouri/11/2025 (H1N1)pdm09, A/Darwin/1454/2025 [egg] or A/Darwin/1415/2025 [non-egg] (H3N2), B/Tokyo/EIS13-175/2025 [egg] or B/Pennsylvania/14/2025 [non-egg] (B/Victoria)\nUnderstand egg vs cell vs recombinant vs mRNA platforms (egg adaptation mutations in HA explain why strains differ by platform)\nUnderstand HA basics: head vs stem, receptor-binding site, antigenic sites, why HA drifts\n\nWhy it’s called hemagglutinin (red cell clumping assay) vs what it does (attachment + membrane fusion)\nHA0 → HA1 + HA2 cleavage; low-pH conformational change; fusion peptide\nLook at an HA trimer in PyMOL: color head (HA1) vs stem (HA2), find the receptor-binding site\n\nUnderstand why NA is secondary (vaccine standardization is HA-based; verify NA content per vaccine)\nRead about broadly neutralizing antibodies targeting the stem\n\n\n\n\n\nGISAID EpiFlu: optional. Registration needs identity verification + Database Access Agreement; webmail addresses may be slowed. DAA forbids redistributing GISAID sequences (no raw sequences in a public GitHub repo — scripts + EPI_ISL ID lists + acknowledgment table only). Approval for an individual without an institution: unknown\nPull HA sequences for the 2026-27 strains (H1N1 first)\n\ngot H1N1 PV502848.1 - (A/Missouri/11/2025(H1N1)) segment 4 hemagglutinin - https://www.ncbi.nlm.nih.gov/nuccore/PV502848.1?report=fasta\n\nPull HA sequences from past seasons from open sources first: NCBI Virus / Influenza Virus Resource (GenBank), BV-BRC. NOTE: Nextstrain seasonal flu builds use GISAID data and are restricted in re-sharing, so they are NOT a fully open source (earlier note here was wrong). Check what the tree page’s ‘Download Data’ offers\nCheck GenBank/BV-BRC coverage of the 2026-27 strains and subclade K (recent strains may be missing)\nChoose one subtype to start (H1N1pdm09 or H3N2)\n\n\n\n\n\nInstall MAFFT and Biopython\nAlign HA sequences across seasons\nIdentify variable positions; note which changed in which season\nSeparate egg-adaptation changes from genuine antigenic drift where possible\n\n\n\n\n\nPick an HA structure from the PDB for the chosen subtype\nCheck numbering (H3 numbering convention vs PDB resi; verify with a landmark residue, same lesson as Chothia/PyMOL mismatch)\nColor variable positions on the structure in PyMOL\nMark known antigenic sites / receptor-binding site (look up published epitope maps)\nCheck: do drifting positions cluster on the head near epitopes? Is the stem conserved?\nOverlay an antibody-bound HA structure (head-binding vs stem-binding) and see which variable positions fall in the footprint\n\n\n\n\n\nPut pipeline in a GitHub repo (alignment script, mapping script, PyMOL session)\nShort README: question, data sources, method, figure, findings, caveats\nNote limitations (sampling bias in sequence databases, egg vs non-egg, one subtype only)\n\n\n\n\n\nRepeat for second subtype or B/Victoria\nLink to antibody engineering: which epitope would a therapeutic or broadly neutralizing antibody need to avoid drifting positions?\nCompare mutation density head vs stem quantitatively\n\n\n\n\n\nStrain selection process (GISRS surveillance, sequencing, ferret HI, human serology, manufacturing lead time)\nPlatform lists: egg vs cell/recombinant/nucleic acid; why picks differ (egg adaptation)\nNotation: A(H1N1)pdm09, strain naming A/Place/#/Year, B/Victoria lineage, “-like”\nTrivalent vs quadrivalent (Yamagata dropped; verify)\nZoonotic H5; receptor specificity (α2,3 vs α2,6); why few human-to-human cases\nClade nomenclature: H1 6B.1A.5a.2a.1 / D.3.1; H3 2a.3a.1 / J / K (= J.2.4.1)\nWhy vaccines aren’t 100% effective; mucosal (FluMist) vs injected; pre-existing and anti-vector immunity\nAntiviral resistance surveillance (H275Y, I223V + S247N in NA; baloxavir/PA)\nPassage level and SIAT/MDCK cell culture; reading an HI table\n\n\n\n\n\nAuthoritative subclade of A/Missouri/11/2025 (one source says D.3.1, another D.3.1.1) — check WHO report or Nextstrain\nAuthoritative defining HA substitutions for H3N2 subclade K (T135K, S144N vs K2N, Q173R — sources disagree)\nDoes S144N create an N-glycosylation motif (depends on residue 146)? Links to liability scan idea\nH1pdm09 numbering (signal peptide removed) vs PDB residue numbers; H3 numbering convention\nCheck GISAID metadata for passage history; prefer original-specimen sequences to avoid culture artifacts\n\n\n\n\n\nCanadian SPSN paper (Eurosurveillance 2024, 5a.2a/5a.2a.1 HA substitutions modeled on PDB 7KNV in PyMOL) — closest published analogue to this project\nEngland early characterisation + VE paper on subclade K (autumn 2025)\n\n\n\n\n\nH3N2 subclade K: map T135K / S144N (H3 numbering) on an H3 HA structure; check antigenic sites\nN1 neuraminidase: map H275Y, I223V, S247N relative to bound oseltamivir (find PDB entry)\nH5 stretch: compare avian H5 HA vs seasonal H1 head and stem; receptor-binding positions"
+  },
+  {
+    "objectID": "checklist.html#background",
+    "href": "checklist.html#background",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Read WHO 2026-27 NH recommendation (27 Feb 2026) — done — strains: A/Missouri/11/2025 (H1N1)pdm09, A/Darwin/1454/2025 [egg] or A/Darwin/1415/2025 [non-egg] (H3N2), B/Tokyo/EIS13-175/2025 [egg] or B/Pennsylvania/14/2025 [non-egg] (B/Victoria)\nUnderstand egg vs cell vs recombinant vs mRNA platforms (egg adaptation mutations in HA explain why strains differ by platform)\nUnderstand HA basics: head vs stem, receptor-binding site, antigenic sites, why HA drifts\n\nWhy it’s called hemagglutinin (red cell clumping assay) vs what it does (attachment + membrane fusion)\nHA0 → HA1 + HA2 cleavage; low-pH conformational change; fusion peptide\nLook at an HA trimer in PyMOL: color head (HA1) vs stem (HA2), find the receptor-binding site\n\nUnderstand why NA is secondary (vaccine standardization is HA-based; verify NA content per vaccine)\nRead about broadly neutralizing antibodies targeting the stem"
+  },
+  {
+    "objectID": "checklist.html#data",
+    "href": "checklist.html#data",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "GISAID EpiFlu: optional. Registration needs identity verification + Database Access Agreement; webmail addresses may be slowed. DAA forbids redistributing GISAID sequences (no raw sequences in a public GitHub repo — scripts + EPI_ISL ID lists + acknowledgment table only). Approval for an individual without an institution: unknown\nPull HA sequences for the 2026-27 strains (H1N1 first)\n\ngot H1N1 PV502848.1 - (A/Missouri/11/2025(H1N1)) segment 4 hemagglutinin - https://www.ncbi.nlm.nih.gov/nuccore/PV502848.1?report=fasta\n\nPull HA sequences from past seasons from open sources first: NCBI Virus / Influenza Virus Resource (GenBank), BV-BRC. NOTE: Nextstrain seasonal flu builds use GISAID data and are restricted in re-sharing, so they are NOT a fully open source (earlier note here was wrong). Check what the tree page’s ‘Download Data’ offers\nCheck GenBank/BV-BRC coverage of the 2026-27 strains and subclade K (recent strains may be missing)\nChoose one subtype to start (H1N1pdm09 or H3N2)"
+  },
+  {
+    "objectID": "checklist.html#sequence-analysis",
+    "href": "checklist.html#sequence-analysis",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Install MAFFT and Biopython\nAlign HA sequences across seasons\nIdentify variable positions; note which changed in which season\nSeparate egg-adaptation changes from genuine antigenic drift where possible"
+  },
+  {
+    "objectID": "checklist.html#structure-mapping",
+    "href": "checklist.html#structure-mapping",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Pick an HA structure from the PDB for the chosen subtype\nCheck numbering (H3 numbering convention vs PDB resi; verify with a landmark residue, same lesson as Chothia/PyMOL mismatch)\nColor variable positions on the structure in PyMOL\nMark known antigenic sites / receptor-binding site (look up published epitope maps)\nCheck: do drifting positions cluster on the head near epitopes? Is the stem conserved?\nOverlay an antibody-bound HA structure (head-binding vs stem-binding) and see which variable positions fall in the footprint"
+  },
+  {
+    "objectID": "checklist.html#writeup",
+    "href": "checklist.html#writeup",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Put pipeline in a GitHub repo (alignment script, mapping script, PyMOL session)\nShort README: question, data sources, method, figure, findings, caveats\nNote limitations (sampling bias in sequence databases, egg vs non-egg, one subtype only)"
+  },
+  {
+    "objectID": "checklist.html#stretch",
+    "href": "checklist.html#stretch",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Repeat for second subtype or B/Victoria\nLink to antibody engineering: which epitope would a therapeutic or broadly neutralizing antibody need to avoid drifting positions?\nCompare mutation density head vs stem quantitatively"
+  },
+  {
+    "objectID": "checklist.html#concepts-covered-so-far-discussion-verify-details-against-sources",
+    "href": "checklist.html#concepts-covered-so-far-discussion-verify-details-against-sources",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Strain selection process (GISRS surveillance, sequencing, ferret HI, human serology, manufacturing lead time)\nPlatform lists: egg vs cell/recombinant/nucleic acid; why picks differ (egg adaptation)\nNotation: A(H1N1)pdm09, strain naming A/Place/#/Year, B/Victoria lineage, “-like”\nTrivalent vs quadrivalent (Yamagata dropped; verify)\nZoonotic H5; receptor specificity (α2,3 vs α2,6); why few human-to-human cases\nClade nomenclature: H1 6B.1A.5a.2a.1 / D.3.1; H3 2a.3a.1 / J / K (= J.2.4.1)\nWhy vaccines aren’t 100% effective; mucosal (FluMist) vs injected; pre-existing and anti-vector immunity\nAntiviral resistance surveillance (H275Y, I223V + S247N in NA; baloxavir/PA)\nPassage level and SIAT/MDCK cell culture; reading an HI table"
+  },
+  {
+    "objectID": "checklist.html#findings-to-verify-follow-up",
+    "href": "checklist.html#findings-to-verify-follow-up",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Authoritative subclade of A/Missouri/11/2025 (one source says D.3.1, another D.3.1.1) — check WHO report or Nextstrain\nAuthoritative defining HA substitutions for H3N2 subclade K (T135K, S144N vs K2N, Q173R — sources disagree)\nDoes S144N create an N-glycosylation motif (depends on residue 146)? Links to liability scan idea\nH1pdm09 numbering (signal peptide removed) vs PDB residue numbers; H3 numbering convention\nCheck GISAID metadata for passage history; prefer original-specimen sequences to avoid culture artifacts"
+  },
+  {
+    "objectID": "checklist.html#reading-to-add",
+    "href": "checklist.html#reading-to-add",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Canadian SPSN paper (Eurosurveillance 2024, 5a.2a/5a.2a.1 HA substitutions modeled on PDB 7KNV in PyMOL) — closest published analogue to this project\nEngland early characterisation + VE paper on subclade K (autumn 2025)"
+  },
+  {
+    "objectID": "checklist.html#project-ideas-branching-from-discussion",
+    "href": "checklist.html#project-ideas-branching-from-discussion",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "H3N2 subclade K: map T135K / S144N (H3 numbering) on an H3 HA structure; check antigenic sites\nN1 neuraminidase: map H275Y, I223V, S247N relative to bound oseltamivir (find PDB entry)\nH5 stretch: compare avian H5 HA vs seasonal H1 head and stem; receptor-binding positions"
+  },
+  {
+    "objectID": "flu-ha-drift-checklist.html",
+    "href": "flu-ha-drift-checklist.html",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Goal: map hemagglutinin (HA) sequence changes across seasons onto a 3D structure, check whether they cluster at antibody epitopes (head) vs conserved regions (stem). Same skills as the pembrolizumab project, antigen side.\nRelated: Compugen role\n\n\n\nRead WHO 2026-27 NH recommendation (27 Feb 2026) — done — strains: A/Missouri/11/2025 (H1N1)pdm09, A/Darwin/1454/2025 [egg] or A/Darwin/1415/2025 [non-egg] (H3N2), B/Tokyo/EIS13-175/2025 [egg] or B/Pennsylvania/14/2025 [non-egg] (B/Victoria)\nUnderstand egg vs cell vs recombinant vs mRNA platforms (egg adaptation mutations in HA explain why strains differ by platform)\nUnderstand HA basics: head vs stem, receptor-binding site, antigenic sites, why HA drifts\n\nWhy it’s called hemagglutinin (red cell clumping assay) vs what it does (attachment + membrane fusion)\nHA0 → HA1 + HA2 cleavage; low-pH conformational change; fusion peptide\nLook at an HA trimer in PyMOL: color head (HA1) vs stem (HA2), find the receptor-binding site\n\nUnderstand why NA is secondary (vaccine standardization is HA-based; verify NA content per vaccine)\nRead about broadly neutralizing antibodies targeting the stem\n\n\n\n\n\nGISAID EpiFlu: optional. Registration needs identity verification + Database Access Agreement; webmail addresses may be slowed. DAA forbids redistributing GISAID sequences (no raw sequences in a public GitHub repo — scripts + EPI_ISL ID lists + acknowledgment table only). Approval for an individual without an institution: unknown\nPull HA sequences for the 2026-27 strains (H1N1 first)\n\ngot H1N1 PV502848.1 - (A/Missouri/11/2025(H1N1)) segment 4 hemagglutinin - https://www.ncbi.nlm.nih.gov/nuccore/PV502848.1?report=fasta\n\nPull HA sequences from past seasons from open sources first: NCBI Virus / Influenza Virus Resource (GenBank), BV-BRC. NOTE: Nextstrain seasonal flu builds use GISAID data and are restricted in re-sharing, so they are NOT a fully open source (earlier note here was wrong). Check what the tree page’s ‘Download Data’ offers\nCheck GenBank/BV-BRC coverage of the 2026-27 strains and subclade K (recent strains may be missing)\nChoose one subtype to start (H1N1pdm09 or H3N2)\n\n\n\n\n\nInstall MAFFT and Biopython\nAlign HA sequences across seasons\nIdentify variable positions; note which changed in which season\nSeparate egg-adaptation changes from genuine antigenic drift where possible\n\n\n\n\n\nPick an HA structure from the PDB for the chosen subtype\nCheck numbering (H3 numbering convention vs PDB resi; verify with a landmark residue, same lesson as Chothia/PyMOL mismatch)\nColor variable positions on the structure in PyMOL\nMark known antigenic sites / receptor-binding site (look up published epitope maps)\nCheck: do drifting positions cluster on the head near epitopes? Is the stem conserved?\nOverlay an antibody-bound HA structure (head-binding vs stem-binding) and see which variable positions fall in the footprint\n\n\n\n\n\nPut pipeline in a GitHub repo (alignment script, mapping script, PyMOL session)\nShort README: question, data sources, method, figure, findings, caveats\nNote limitations (sampling bias in sequence databases, egg vs non-egg, one subtype only)\n\n\n\n\n\nRepeat for second subtype or B/Victoria\nLink to antibody engineering: which epitope would a therapeutic or broadly neutralizing antibody need to avoid drifting positions?\nCompare mutation density head vs stem quantitatively\n\n\n\n\n\nStrain selection process (GISRS surveillance, sequencing, ferret HI, human serology, manufacturing lead time)\nPlatform lists: egg vs cell/recombinant/nucleic acid; why picks differ (egg adaptation)\nNotation: A(H1N1)pdm09, strain naming A/Place/#/Year, B/Victoria lineage, “-like”\nTrivalent vs quadrivalent (Yamagata dropped; verify)\nZoonotic H5; receptor specificity (α2,3 vs α2,6); why few human-to-human cases\nClade nomenclature: H1 6B.1A.5a.2a.1 / D.3.1; H3 2a.3a.1 / J / K (= J.2.4.1)\nWhy vaccines aren’t 100% effective; mucosal (FluMist) vs injected; pre-existing and anti-vector immunity\nAntiviral resistance surveillance (H275Y, I223V + S247N in NA; baloxavir/PA)\nPassage level and SIAT/MDCK cell culture; reading an HI table\n\n\n\n\n\nAuthoritative subclade of A/Missouri/11/2025 (one source says D.3.1, another D.3.1.1) — check WHO report or Nextstrain\nAuthoritative defining HA substitutions for H3N2 subclade K (T135K, S144N vs K2N, Q173R — sources disagree)\nDoes S144N create an N-glycosylation motif (depends on residue 146)? Links to liability scan idea\nH1pdm09 numbering (signal peptide removed) vs PDB residue numbers; H3 numbering convention\nCheck GISAID metadata for passage history; prefer original-specimen sequences to avoid culture artifacts\n\n\n\n\n\nCanadian SPSN paper (Eurosurveillance 2024, 5a.2a/5a.2a.1 HA substitutions modeled on PDB 7KNV in PyMOL) — closest published analogue to this project\nEngland early characterisation + VE paper on subclade K (autumn 2025)\n\n\n\n\n\nH3N2 subclade K: map T135K / S144N (H3 numbering) on an H3 HA structure; check antigenic sites\nN1 neuraminidase: map H275Y, I223V, S247N relative to bound oseltamivir (find PDB entry)\nH5 stretch: compare avian H5 HA vs seasonal H1 head and stem; receptor-binding positions"
+  },
+  {
+    "objectID": "flu-ha-drift-checklist.html#background",
+    "href": "flu-ha-drift-checklist.html#background",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Read WHO 2026-27 NH recommendation (27 Feb 2026) — done — strains: A/Missouri/11/2025 (H1N1)pdm09, A/Darwin/1454/2025 [egg] or A/Darwin/1415/2025 [non-egg] (H3N2), B/Tokyo/EIS13-175/2025 [egg] or B/Pennsylvania/14/2025 [non-egg] (B/Victoria)\nUnderstand egg vs cell vs recombinant vs mRNA platforms (egg adaptation mutations in HA explain why strains differ by platform)\nUnderstand HA basics: head vs stem, receptor-binding site, antigenic sites, why HA drifts\n\nWhy it’s called hemagglutinin (red cell clumping assay) vs what it does (attachment + membrane fusion)\nHA0 → HA1 + HA2 cleavage; low-pH conformational change; fusion peptide\nLook at an HA trimer in PyMOL: color head (HA1) vs stem (HA2), find the receptor-binding site\n\nUnderstand why NA is secondary (vaccine standardization is HA-based; verify NA content per vaccine)\nRead about broadly neutralizing antibodies targeting the stem"
+  },
+  {
+    "objectID": "flu-ha-drift-checklist.html#data",
+    "href": "flu-ha-drift-checklist.html#data",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "GISAID EpiFlu: optional. Registration needs identity verification + Database Access Agreement; webmail addresses may be slowed. DAA forbids redistributing GISAID sequences (no raw sequences in a public GitHub repo — scripts + EPI_ISL ID lists + acknowledgment table only). Approval for an individual without an institution: unknown\nPull HA sequences for the 2026-27 strains (H1N1 first)\n\ngot H1N1 PV502848.1 - (A/Missouri/11/2025(H1N1)) segment 4 hemagglutinin - https://www.ncbi.nlm.nih.gov/nuccore/PV502848.1?report=fasta\n\nPull HA sequences from past seasons from open sources first: NCBI Virus / Influenza Virus Resource (GenBank), BV-BRC. NOTE: Nextstrain seasonal flu builds use GISAID data and are restricted in re-sharing, so they are NOT a fully open source (earlier note here was wrong). Check what the tree page’s ‘Download Data’ offers\nCheck GenBank/BV-BRC coverage of the 2026-27 strains and subclade K (recent strains may be missing)\nChoose one subtype to start (H1N1pdm09 or H3N2)"
+  },
+  {
+    "objectID": "flu-ha-drift-checklist.html#sequence-analysis",
+    "href": "flu-ha-drift-checklist.html#sequence-analysis",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Install MAFFT and Biopython\nAlign HA sequences across seasons\nIdentify variable positions; note which changed in which season\nSeparate egg-adaptation changes from genuine antigenic drift where possible"
+  },
+  {
+    "objectID": "flu-ha-drift-checklist.html#structure-mapping",
+    "href": "flu-ha-drift-checklist.html#structure-mapping",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Pick an HA structure from the PDB for the chosen subtype\nCheck numbering (H3 numbering convention vs PDB resi; verify with a landmark residue, same lesson as Chothia/PyMOL mismatch)\nColor variable positions on the structure in PyMOL\nMark known antigenic sites / receptor-binding site (look up published epitope maps)\nCheck: do drifting positions cluster on the head near epitopes? Is the stem conserved?\nOverlay an antibody-bound HA structure (head-binding vs stem-binding) and see which variable positions fall in the footprint"
+  },
+  {
+    "objectID": "flu-ha-drift-checklist.html#writeup",
+    "href": "flu-ha-drift-checklist.html#writeup",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Put pipeline in a GitHub repo (alignment script, mapping script, PyMOL session)\nShort README: question, data sources, method, figure, findings, caveats\nNote limitations (sampling bias in sequence databases, egg vs non-egg, one subtype only)"
+  },
+  {
+    "objectID": "flu-ha-drift-checklist.html#stretch",
+    "href": "flu-ha-drift-checklist.html#stretch",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Repeat for second subtype or B/Victoria\nLink to antibody engineering: which epitope would a therapeutic or broadly neutralizing antibody need to avoid drifting positions?\nCompare mutation density head vs stem quantitatively"
+  },
+  {
+    "objectID": "flu-ha-drift-checklist.html#concepts-covered-so-far-discussion-verify-details-against-sources",
+    "href": "flu-ha-drift-checklist.html#concepts-covered-so-far-discussion-verify-details-against-sources",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Strain selection process (GISRS surveillance, sequencing, ferret HI, human serology, manufacturing lead time)\nPlatform lists: egg vs cell/recombinant/nucleic acid; why picks differ (egg adaptation)\nNotation: A(H1N1)pdm09, strain naming A/Place/#/Year, B/Victoria lineage, “-like”\nTrivalent vs quadrivalent (Yamagata dropped; verify)\nZoonotic H5; receptor specificity (α2,3 vs α2,6); why few human-to-human cases\nClade nomenclature: H1 6B.1A.5a.2a.1 / D.3.1; H3 2a.3a.1 / J / K (= J.2.4.1)\nWhy vaccines aren’t 100% effective; mucosal (FluMist) vs injected; pre-existing and anti-vector immunity\nAntiviral resistance surveillance (H275Y, I223V + S247N in NA; baloxavir/PA)\nPassage level and SIAT/MDCK cell culture; reading an HI table"
+  },
+  {
+    "objectID": "flu-ha-drift-checklist.html#findings-to-verify-follow-up",
+    "href": "flu-ha-drift-checklist.html#findings-to-verify-follow-up",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Authoritative subclade of A/Missouri/11/2025 (one source says D.3.1, another D.3.1.1) — check WHO report or Nextstrain\nAuthoritative defining HA substitutions for H3N2 subclade K (T135K, S144N vs K2N, Q173R — sources disagree)\nDoes S144N create an N-glycosylation motif (depends on residue 146)? Links to liability scan idea\nH1pdm09 numbering (signal peptide removed) vs PDB residue numbers; H3 numbering convention\nCheck GISAID metadata for passage history; prefer original-specimen sequences to avoid culture artifacts"
+  },
+  {
+    "objectID": "flu-ha-drift-checklist.html#reading-to-add",
+    "href": "flu-ha-drift-checklist.html#reading-to-add",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "Canadian SPSN paper (Eurosurveillance 2024, 5a.2a/5a.2a.1 HA substitutions modeled on PDB 7KNV in PyMOL) — closest published analogue to this project\nEngland early characterisation + VE paper on subclade K (autumn 2025)"
+  },
+  {
+    "objectID": "flu-ha-drift-checklist.html#project-ideas-branching-from-discussion",
+    "href": "flu-ha-drift-checklist.html#project-ideas-branching-from-discussion",
+    "title": "Flu HA Drift Project Checklist",
+    "section": "",
+    "text": "H3N2 subclade K: map T135K / S144N (H3 numbering) on an H3 HA structure; check antigenic sites\nN1 neuraminidase: map H275Y, I223V, S247N relative to bound oseltamivir (find PDB entry)\nH5 stretch: compare avian H5 HA vs seasonal H1 head and stem; receptor-binding positions"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Results",
+    "section": "",
+    "text": "Mapping hemagglutinin sequence changes across flu seasons onto 3D structure, to check whether they cluster at head epitopes vs the conserved stem."
+  },
+  {
+    "objectID": "index.html#section",
+    "href": "index.html#section",
+    "title": "Results",
+    "section": "2025",
+    "text": "2025"
+  },
+  {
+    "objectID": "entries/2026-11-01-who-recommendation.html",
+    "href": "entries/2026-11-01-who-recommendation.html",
+    "title": "Read WHO 2026-27 NH recommendation",
+    "section": "",
+    "text": "Strains: A/Missouri/11/2025 (H1N1)pdm09, A/Darwin/1454/2025 (H3N2, egg), B/Tokyo/EIS13-175/2025 (B/Victoria, egg)."
+  }
+]
