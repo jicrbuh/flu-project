@@ -7,8 +7,6 @@ website:
     left:
       - href: project-overview.qmd
         text: Overview
-      - href: checklist.qmd
-        text: Checklist
       - href: index.qmd
         text: Results
 
