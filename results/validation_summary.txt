@@ -1,0 +1,5 @@
+VALIDATION PASSED
+variability_csv=variability.csv
+drift_csv=drift.csv
+numbering_map_csv=numbering_map.csv
+pymol_file=drift.pml
