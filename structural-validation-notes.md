@@ -29,5 +29,7 @@ These are sequence-to-coordinate mapping checks, not evidence that a drift subst
 - The PDB model is not the same isolate as the Missouri reference. A `pdb_aa` mismatch is a difference between the structure and reference, not a drift substitution in the seasonal samples.
 - No published antigenic-site map is applied. Structural proximity or sequence variability alone does not establish an antigenic effect.
 - The seasonal sample is capped at 10 sequences per season, so reported fractions are based on a small sample and should be read with their denominators.
+- The current PDB candidate should be reconsidered. PDB 9GSP is a promising higher-identity H1 candidate (about 96.6% sequence identity to Missouri, with 488 modeled CA-bearing residues in chain A), but it is A/Victoria/2570/2019 rather than an exact A/Missouri/11/2025 structure. It differs at 19 positions and should be documented and validated before replacing 7KNA.
+- Exact-name searches can return unrelated H2/H4 "Missouri" strains. A candidate must match H1N1, full-chain coverage, sequence identity, and biological intent rather than strain-name text alone.
 
 Before making antigenic claims, select an experimentally supported H1 epitope map, translate its numbering to the project reference, and support functional claims with relevant antibody or neutralization evidence.

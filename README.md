@@ -112,3 +112,19 @@ quarto render
 This project is meant for reproducible analysis and exploratory structural interpretation. The drift outputs are generated from sequence data, but structural interpretation should be treated with caution and validated against the actual model and residue mapping before drawing strong biological conclusions.
 
 The structure mapping aligns the reference sequence to modeled residues (residues with CA atoms) in the configured PDB chain. It reports actual PDB residue IDs rather than assuming a constant numbering offset. Drift positions absent from the model remain in `structural_drift.csv` and are excluded from the PyMOL selections. The configured 17-residue signal-peptide offset is still a numbering convention; this structural check does not independently establish its biological cleavage site, assign antigenic sites, or prove an antigenic effect.
+
+### Next structural step: consider another PDB candidate
+
+The current `7KNA` scaffold should be replaced or supplemented if a more appropriate H1 structure is available. [PDB 9GSP](https://www.rcsb.org/structure/9GSP) is a stronger current candidate than 7KNA: it is a full-length H1 hemagglutinin with 96.6% identity to the Missouri reference and 488 modeled CA-bearing residues in chain A.
+
+9GSP is A/Victoria/2570/2019, not an exact A/Missouri/11/2025 structure. It has 566 residues and differs from Missouri at 19 positions, so the replacement should preserve `pdb_aa`, `identity_match`, and unmodeled-position reporting rather than treating the PDB sequence as the Missouri sequence.
+
+Before changing `pdb_id` in `main.nf`, verify:
+
+- the candidate matches H1N1 and the intended HA chain,
+- sequence identity and coverage are at least as good as or better than 7KNA,
+- the modeled chain and residue numbering are complete enough for the drift positions,
+- the structure is experimental and not merely a computed model, unless a validated homology model is the explicit goal,
+- 9GSP or another candidate improves on 7KNA rather than introducing worse gaps or mismatches.
+
+If no exact Missouri structure is found, document that the selected PDB is a related H1 structural scaffold and keep all biological claims exploratory.
