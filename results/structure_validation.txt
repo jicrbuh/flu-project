@@ -1,0 +1,10 @@
+STRUCTURAL DRIFT REPORT GENERATED
+PDB: 7KNA
+Chain: A
+Distinct drift positions: 74
+Positions with modeled residues: 68
+Positions absent from the model: 506,510,520,528,548,549
+Season-position rows mapped to modeled residues: 340/370
+Modeled reference/PDB amino-acid mismatches: 20
+Unmodeled positions are retained in structural_drift.csv and must not be interpreted from the structure.
+This report does not assign antigenic sites or establish antigenic effect.

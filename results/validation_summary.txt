@@ -1,5 +1,8 @@
 VALIDATION PASSED
 variability_csv=variability.csv
 drift_csv=drift.csv
+drift_detail_csv=drift_detail.csv
 numbering_map_csv=numbering_map.csv
+structural_drift_csv=structural_drift.csv
+structure_validation_txt=structure_validation.txt
 pymol_file=drift.pml

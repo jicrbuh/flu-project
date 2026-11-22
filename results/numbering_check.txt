@@ -1,4 +1,10 @@
-Reference-to-PDB numbering diagnostic
-First mature residue: ref_index=18, mature_index=1, pdb_resi=1
-Later check: ref_index=68, mature_index=51, pdb_resi=51
-Verify one landmark directly in PyMOL, e.g. select a residue near the receptor binding site and compare numbering.
+STRUCTURE CHAIN MAPPING PASSED
+PDB: 7KNA
+Chain: A
+Reference residues aligned: 483
+Exact amino-acid matches: 455
+Aligned sequence identity: 0.9420
+Reference coverage: 0.8534
+Mature positions mapped to modeled residues: 483
+Signal-peptide offset used for mature numbering: 17
+This validates chain sequence mapping, not the biological signal-peptide cleavage site.

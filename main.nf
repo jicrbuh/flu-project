@@ -17,14 +17,13 @@ params {
   n_per_season = 10
   seed = 42
   min_length = 566
+  signal_peptide_length = 17
   // For future seasons, store the season -> HA structure mapping in a config file or command-line override.
   season_structure_map = [
     '2025_26': '7KNA'
   ]
   pdb_id = '7KNA'
   chain = 'A'
-  expected_protein = 'Hemagglutinin'
-  expected_organism = 'Influenza A virus'
   reference = 'data/ref/ref_A_Missouri_11_2025.faa'
 }
 
@@ -39,9 +38,20 @@ workflow {
   ref_path = file("${projectDir}/${params.reference}")
   aln = align(selected_fasta, Channel.fromPath(ref_path))
   variability_out = variability(aln, selected_meta)
-  numbering_out = numbering(Channel.fromPath(ref_path))
-  pymol_out = pymol(variability_out.map { it[1] }, numbering_out.map { it[0] })
-  validate(variability_out.map { it[0] }, variability_out.map { it[1] }, numbering_out.map { it[0] }, numbering_out.map { it[1] }, pymol_out)
+  structure_file = fetch_structure()
+  numbering_out = numbering(Channel.fromPath(ref_path), structure_file)
+  structure_report_out = structure_report(variability_out.map { it[2] }, numbering_out.map { it[0] })
+  pymol_out = pymol(structure_report_out.map { it[0] })
+  validate(
+    variability_out.map { it[0] },
+    variability_out.map { it[1] },
+    variability_out.map { it[2] },
+    numbering_out.map { it[0] },
+    numbering_out.map { it[1] },
+    structure_report_out.map { it[0] },
+    structure_report_out.map { it[1] },
+    pymol_out
+  )
 }
 
 process fetch {
@@ -110,11 +120,51 @@ process variability {
   path meta_csv
 
   output:
-  tuple path('variability.csv'), path('drift.csv')
+  tuple path('variability.csv'), path('drift.csv'), path('drift_detail.csv')
 
   script:
   """
-  python3 ${projectDir}/scripts/04_variability.py --alignment ${aln_fa} --meta ${meta_csv} --output-dir .
+  python3 ${projectDir}/scripts/04_variability.py \
+    --alignment ${aln_fa} \
+    --meta ${meta_csv} \
+    --signal-peptide-length ${params.signal_peptide_length} \
+    --output-dir .
+  """
+}
+
+process fetch_structure {
+  tag { "${params.pdb_id}:${params.chain}" }
+  publishDir 'data/structure', mode: 'copy'
+
+  output:
+  path 'structure.cif'
+
+  script:
+  """
+  curl --fail --location --silent --show-error \
+    "https://files.rcsb.org/download/${params.pdb_id}.cif" \
+    --output structure.cif
+  """
+}
+
+process structure_report {
+  publishDir 'results', mode: 'copy'
+
+  input:
+  path drift_detail_csv
+  path numbering_map_csv
+
+  output:
+  tuple path('structural_drift.csv'), path('structure_validation.txt')
+
+  script:
+  """
+  python3 ${projectDir}/scripts/06_structure_report.py \
+    --drift-detail ${drift_detail_csv} \
+    --numbering-map ${numbering_map_csv} \
+    --pdb-id "${params.pdb_id}" \
+    --chain "${params.chain}" \
+    --output-dir .
   """
 }
 
@@ -122,8 +172,7 @@ process pymol {
   publishDir 'results', mode: 'copy'
 
   input:
-  path drift_csv
-  path numbering_csv
+  path structural_drift_csv
 
   output:
   path 'drift.pml'
@@ -131,8 +180,7 @@ process pymol {
   script:
   """
   python3 ${projectDir}/scripts/05_pymol.py \
-    --drift-csv ${drift_csv} \
-    --numbering-csv ${numbering_csv} \
+    --drift-csv ${structural_drift_csv} \
     --pdb-id "${params.pdb_id}" \
     --chain "${params.chain}" \
     --output-dir .
@@ -145,8 +193,11 @@ process validate {
   input:
   path variability_csv
   path drift_csv
+  path drift_detail_csv
   path numbering_map_csv
   path numbering_check_txt
+  path structural_drift_csv
+  path structure_validation_txt
   path pymol_file
 
   output:
@@ -161,8 +212,11 @@ import csv
 required = [
     Path("${variability_csv}"),
     Path("${drift_csv}"),
+    Path("${drift_detail_csv}"),
     Path("${numbering_map_csv}"),
     Path("${numbering_check_txt}"),
+    Path("${structural_drift_csv}"),
+    Path("${structure_validation_txt}"),
     Path("${pymol_file}"),
 ]
 
@@ -178,7 +232,12 @@ if missing_or_empty:
         print(msg)
     raise SystemExit(1)
 
-for csv_path in [Path("${variability_csv}"), Path("${drift_csv}")]:
+for csv_path in [
+    Path("${variability_csv}"),
+    Path("${drift_csv}"),
+    Path("${drift_detail_csv}"),
+    Path("${structural_drift_csv}"),
+]:
     with csv_path.open() as fh:
         rows = list(csv.reader(fh))
     if len(rows) <= 1:
@@ -189,23 +248,39 @@ with numbering_map.open() as fh:
     reader = csv.DictReader(fh)
     if reader.fieldnames is None:
         raise SystemExit("numbering_map.csv is missing a header")
-    required_cols = {"ref_index", "mature_index", "pdb_resi"}
+    required_cols = {
+        "ref_index", "mature_index", "pdb_chain", "pdb_resi",
+        "pdb_aa", "identity_match", "mapping_status",
+    }
     missing_cols = required_cols - set(reader.fieldnames)
     if missing_cols:
         raise SystemExit(f"numbering_map.csv missing required columns: {sorted(missing_cols)}")
+    map_rows = list(reader)
+if not map_rows:
+    raise SystemExit("numbering_map.csv has no data rows")
+for row in map_rows:
+    if row["mapping_status"] == "modeled" and not row["pdb_resi"]:
+        raise SystemExit("numbering_map.csv marks a residue modeled without a PDB residue ID")
 
 check_path = Path("${numbering_check_txt}")
 with check_path.open() as fh:
     check_text = fh.read().strip()
-if not check_text:
-    raise SystemExit("numbering_check.txt is empty")
+if not check_text.startswith("STRUCTURE CHAIN MAPPING PASSED"):
+    raise SystemExit("numbering_check.txt does not report a passing chain mapping")
+
+structure_check = Path("${structure_validation_txt}").read_text().strip()
+if not structure_check.startswith("STRUCTURAL DRIFT REPORT GENERATED"):
+    raise SystemExit("structure_validation.txt is missing its report status")
 
 summary = "validation_summary.txt"
 with Path(summary).open("w") as out:
     out.write("VALIDATION PASSED" + chr(10))
     out.write("variability_csv=" + Path("${variability_csv}").name + chr(10))
     out.write("drift_csv=" + Path("${drift_csv}").name + chr(10))
+    out.write("drift_detail_csv=" + Path("${drift_detail_csv}").name + chr(10))
     out.write("numbering_map_csv=" + Path("${numbering_map_csv}").name + chr(10))
+    out.write("structural_drift_csv=" + Path("${structural_drift_csv}").name + chr(10))
+    out.write("structure_validation_txt=" + Path("${structure_validation_txt}").name + chr(10))
     out.write("pymol_file=" + Path("${pymol_file}").name + chr(10))
 
 print("VALIDATION PASSED")
@@ -218,6 +293,7 @@ process numbering {
 
   input:
   path ref_fa
+  path structure_file
 
   output:
   tuple path('numbering_map.csv'), path('numbering_check.txt')
@@ -226,10 +302,10 @@ process numbering {
   """
   python3 ${projectDir}/scripts/03_numbering.py \
     --reference ${ref_fa} \
+    --structure ${structure_file} \
     --pdb-id "${params.pdb_id}" \
     --chain "${params.chain}" \
-    --expected-protein "${params.expected_protein}" \
-    --expected-organism "${params.expected_organism}" \
+    --signal-peptide-length ${params.signal_peptide_length} \
     --output-dir .
   """
 }
