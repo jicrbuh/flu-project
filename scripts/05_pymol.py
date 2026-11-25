@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Create a PyMOL session script from the drift summary.
-
-This is intentionally a scaffold: it reads a drift file and emits a .pml
-showing residue selections for each season. Fill in the exact antigenic site
-residue lists from a validated HA epitope map before final analysis.
-"""
+"""Create a PyMOL script from the structure-aware seasonal drift report."""
 
 from __future__ import annotations
 
@@ -17,21 +12,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Create a PyMOL session script from the drift summary.")
-    parser.add_argument("--drift-csv", type=Path, default=ROOT / "results" / "drift.csv")
-    parser.add_argument("--numbering-csv", type=Path, default=None, help="Numbering map to map mature positions to PDB residue IDs")
+    parser = argparse.ArgumentParser(description="Create a PyMOL script from validated structural drift positions.")
+    parser.add_argument("--drift-csv", type=Path, default=ROOT / "results" / "structural_drift.csv")
     parser.add_argument("--pdb-id", default="7KNA", help="PDB identifier to load in PyMOL")
     parser.add_argument("--chain", default="A", help="PDB chain to select and color")
     parser.add_argument("--output-dir", type=Path, default=ROOT / "results")
     return parser.parse_args()
 
 
-def build_pml(drift: pd.DataFrame, numbering_map: pd.DataFrame | None = None, pdb_id: str = "7KNA", chain: str = "A") -> str:
-    seasons = [col for col in drift.columns if col != "mature"]
-    residue_map = {}
-    if numbering_map is not None and not numbering_map.empty:
-        if "mature_index" in numbering_map.columns and "pdb_resi" in numbering_map.columns:
-            residue_map = dict(zip(numbering_map["mature_index"].astype(int), numbering_map["pdb_resi"].astype(int)))
+def build_pml(drift: pd.DataFrame, pdb_id: str = "7KNA", chain: str = "A") -> str:
+    required = {"season", "fraction_different", "pdb_chain", "pdb_resi", "structure_status"}
+    missing = required - set(drift.columns)
+    if missing:
+        raise ValueError(f"Structure-aware drift table is missing columns: {sorted(missing)}")
 
     chain_id = chain.upper()
     lines = [
@@ -40,55 +33,52 @@ def build_pml(drift: pd.DataFrame, numbering_map: pd.DataFrame | None = None, pd
         f"show cartoon, {pdb_id}",
         f"color white, {pdb_id}",
         "",
-        "# Rough background domain coloring for a quick structural overview. This is a visual aid only,",
-        "# not a validated HA head/stem domain annotation.",
-        f"select head, {pdb_id} and chain {chain_id} and resi 1-300",
-        f"select stem, {pdb_id} and chain {chain_id} and resi 301-550",
-        "show surface, head",
-        "show surface, stem",
-        "color teal, head",
-        "color orange, stem",
-        "set surface_transparency, 0.75",
-        "set surface_quality, 1",
-        "",
-        "# The residue list below is derived from the mature HA numbering in the drift table and",
-        "# then translated to PDB numbering using numbering_map.csv where available.",
-        "# Use the count_atoms check below to confirm the selection contains modeled residues.",
+        "# Selections include only above-threshold residues modeled in the validated chain mapping.",
+        "# Positions absent from the model remain listed in structural_drift.csv but are not selected.",
         "",
     ]
 
-    for season in seasons:
-        residues = []
-        for mature in drift.index:
-            mature_int = int(mature)
-            score = drift.loc[mature, season]
-            if pd.notna(score) and score > 0.05:
-                pdb_resi = residue_map.get(mature_int, mature_int)
-                residues.append(int(pdb_resi))
-        residues = sorted(set(residues))
+    seasons = sorted(drift["season"].dropna().unique())
+    for season_index, season in enumerate(seasons):
+        season_rows = drift[
+            (drift["season"] == season)
+            & (drift["fraction_different"] > 0.05)
+        ]
+        modeled = season_rows[
+            (season_rows["structure_status"] == "modeled")
+            & (season_rows["pdb_chain"].astype(str).str.upper() == chain_id)
+            & season_rows["pdb_resi"].notna()
+            & (season_rows["pdb_resi"].astype(str) != "")
+        ]
+        residues = sorted(set(modeled["pdb_resi"].astype(str)), key=pdb_residue_sort_key)
+        missing_count = len(season_rows) - len(modeled)
         if not residues:
+            lines.append(f"# {season}: no above-threshold modeled residues; {missing_count} absent from the structure")
+            lines.append("")
             continue
-        sel_name = to_pymol_selection_name(season)
-        residue_list = "+".join(str(res) for res in residues)
-        lines.append(f"select {sel_name}, {pdb_id} and chain {chain_id} and name CA and resi {residue_list}")
+
+        sel_name = to_pymol_selection_name(str(season))
+        residue_list = "+".join(residues)
+        lines.append(
+            f"select {sel_name}, {pdb_id} and chain {chain_id} and name CA and resi {residue_list}"
+        )
         lines.append(f"show spheres, {sel_name}")
-        lines.append(f"color {season_to_color(season)}, {sel_name}")
+        lines.append(f"color {season_color(season_index)}, {sel_name}")
         lines.append(f"print('count_atoms {sel_name}: %d' % cmd.count_atoms('{sel_name}'))")
+        lines.append(f"# {season}: {len(residues)} mapped positions; {missing_count} above-threshold positions absent")
         lines.append("")
 
-    lines.extend([
-        "",
-        "# Domain coloring is intentionally kept minimal and should be validated against a published",
-        "# HA domain definition before publication. The season-specific residue selections are the primary output.",
-        "",
-        "set cartoon_transparency, 0.2",
-        "set sphere_scale, 0.6",
-        "dss",
-    ])
+    lines.extend(
+        [
+            "set cartoon_transparency, 0.2",
+            "set sphere_scale, 0.6",
+            "dss",
+        ]
+    )
     return "\n".join(lines) + "\n"
 
 
-def season_to_color(season: str) -> str:
+def season_color(index: int) -> str:
     palette = [
         "red",
         "blue",
@@ -101,35 +91,28 @@ def season_to_color(season: str) -> str:
         "salmon",
         "gray",
     ]
-    idx = abs(hash(season)) % len(palette)
-    return palette[idx]
+    return palette[index % len(palette)]
+
+
+def pdb_residue_sort_key(value: str) -> tuple[int, str]:
+    numeric = "".join(character for character in value if character in "-0123456789")
+    return int(numeric or 0), value
 
 
 def to_pymol_selection_name(season: str) -> str:
-    name = season.replace("-", "").replace("_", "")
-    name = ''.join(ch for ch in name if ch.isalnum())
-    if not name:
-        return "s"
-    return f"s{name}"
+    name = "".join(ch for ch in season.replace("-", "").replace("_", "") if ch.isalnum())
+    return f"s{name}" if name else "s"
 
 
 def main() -> int:
     args = parse_args()
-    drift_path = args.drift_csv
-    output_dir = args.output_dir
-    output_dir.mkdir(parents=True, exist_ok=True)
+    if not args.drift_csv.exists():
+        raise FileNotFoundError(f"Structure-aware drift report not found: {args.drift_csv}")
 
-    if not drift_path.exists():
-        raise FileNotFoundError(f"Drift file not found: {drift_path}. Run make variability first.")
-
-    drift = pd.read_csv(drift_path, index_col=0)
-    numbering_map = None
-    if args.numbering_csv is not None and args.numbering_csv.exists():
-        numbering_map = pd.read_csv(args.numbering_csv)
-
-    out_path = output_dir / "drift.pml"
-    pml = build_pml(drift, numbering_map, pdb_id=args.pdb_id, chain=args.chain)
-    out_path.write_text(pml, encoding="utf-8")
+    drift = pd.read_csv(args.drift_csv, dtype={"pdb_resi": str})
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    out_path = args.output_dir / "drift.pml"
+    out_path.write_text(build_pml(drift, pdb_id=args.pdb_id, chain=args.chain), encoding="utf-8")
     print(f"Wrote PyMOL file to {out_path}")
     return 0
 

@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-1.10.20">
+<meta name="generator" content="quarto-1.11.9">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -38,14 +38,15 @@ ul.task-list li input[type="checkbox"] {
 <meta name="quarto:offset" content="./">
 <script src="site_libs/quarto-html/quarto.js" type="module"></script>
 <script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/scrollable-regions/scrollable-regions.js" type="module"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
 <script src="site_libs/quarto-html/anchor.min.js"></script>
 <link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="site_libs/quarto-html/quarto-syntax-highlighting-17888a1159294d3eb470f19f6f52f5a5.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-63b5708e65d6cd79cd7618c58d0c21e7.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-6a0bd39cf856e39ca82eb120489b7a0f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-d31a0c91b01e363be7b7a36e602e2c70.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -77,19 +78,18 @@ ul.task-list li input[type="checkbox"] {
 
 </head>
 
-<body class="nav-fixed fullcontent quarto-light">
+<body class="nav-fixed fullcontent quarto-light"><a id="quarto-skip-link" class="visually-hidden-focusable" href="#quarto-document-content">Skip to main content</a>
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
-    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark" aria-label="Site">
       <div class="navbar-container container-fluid">
       <div class="navbar-brand-container mx-auto">
     <a class="navbar-brand" href="./index.html">
     <span class="navbar-title">Flu HA drift</span>
     </a>
   </div>
-            <div id="quarto-search" class="" title="Search"></div>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
@@ -106,6 +106,7 @@ ul.task-list li input[type="checkbox"] {
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
 </div>
+            <div id="quarto-search" class="" title="Search"></div>
       </div> <!-- /container-fluid -->
     </nav>
 </header>
@@ -115,103 +116,48 @@ ul.task-list li input[type="checkbox"] {
 <!-- margin-sidebar -->
     
 <!-- main -->
-<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+<main class="content" id="quarto-document-content" tabindex="-1"><header id="title-block-header" class="quarto-title-block"></header>
 
 
 
 
 <section id="structural-validation-notes-for-the-ha-drift-view" class="level1">
 <h1>Structural validation notes for the HA drift view</h1>
-<p>This note records the main issues we found while validating the PyMOL output against the 7KNA structure and the drift table.</p>
-<section id="the-drift-data-is-real-but-the-visual-is-not-yet-a-validated-biological-result" class="level2">
-<h2 class="anchored" data-anchor-id="the-drift-data-is-real-but-the-visual-is-not-yet-a-validated-biological-result">1. The drift data is real, but the visual is not yet a validated biological result</h2>
-<p>The drift file is generated and non-empty. We confirmed that <code>results/drift.csv</code> contains real seasonal drift values and multiple nonzero per-season positions.</p>
-<p>That means the underlying per-residue drift analysis is operationally valid. However, the downstream structural view is a rendering layer and must still be validated against the actual modeled structure.</p>
-</section>
-<section id="pymol-selection-syntax-was-wrong" class="level2">
-<h2 class="anchored" data-anchor-id="pymol-selection-syntax-was-wrong">2. PyMOL selection syntax was wrong</h2>
-<p>The generated PyMOL script originally used comma-separated residue syntax such as:</p>
-<pre><code>resi 19, 54, 96</code></pre>
-<p>PyMOL expects residue lists written as:</p>
-<pre><code>resi 19+54+96</code></pre>
-<p>This was a real syntax bug. It can silently drop many residues or fail to select them as intended.</p>
-</section>
-<section id="selections-were-not-restricted-to-ca-atoms" class="level2">
-<h2 class="anchored" data-anchor-id="selections-were-not-restricted-to-ca-atoms">3. Selections were not restricted to CA atoms</h2>
-<p>The script originally selected whole residues rather than alpha-carbons. For a clear atom-level visualization, the selection should be restricted to <code>name CA</code>:</p>
-<pre><code>7KNA and chain A and name CA and resi 19+54+96</code></pre>
-<p>This matters because the expected number of visible atoms should match the actual modeled atoms in the structure, and not all drift residues are necessarily modeled.</p>
-</section>
-<section id="the-seasonal-colors-were-overwritten-by-the-final-domain-coloring" class="level2">
-<h2 class="anchored" data-anchor-id="the-seasonal-colors-were-overwritten-by-the-final-domain-coloring">4. The seasonal colors were overwritten by the final domain coloring</h2>
-<p>The broad domain coloring step was applied after the drift selections, so the HA head and stem color assignments could cover the same atoms and hide the season-specific drift colors.</p>
-<p>This is a rendering issue, not a drift computation issue. The season-specific drift colors should be the primary viewpoint and any broad domain coloring should be used carefully and clearly as a background annotation.</p>
-</section>
-<section id="the-headstem-split-was-not-biologically-validated" class="level2">
-<h2 class="anchored" data-anchor-id="the-headstem-split-was-not-biologically-validated">5. The head/stem split was not biologically validated</h2>
-<p>The original split:</p>
-<pre><code>head = resi 1-300
-stem = resi 301-550</code></pre>
-<p>is too crude for a real HA structural interpretation. HA domain boundaries and the PDB numbering layout do not necessarily align with a simple 1–300 / 301–550 split. This was only a rough visual helper, not a scientifically supported domain assignment.</p>
-</section>
-<section id="the-pdb-structure-is-not-a-simple-ha-only-ectodomain-in-a-single-clean-chain" class="level2">
-<h2 class="anchored" data-anchor-id="the-pdb-structure-is-not-a-simple-ha-only-ectodomain-in-a-single-clean-chain">6. The PDB structure is not a simple HA-only ectodomain in a single clean chain</h2>
-<p>The live PyMOL check showed warnings such as:</p>
-<pre><code>AssignSS-Warning: Ignoring incomplete residue /7KNA/C/C/795 ...</code></pre>
-<p>This indicates that the structure includes incomplete residues and that chain C continues beyond the expected HA mature residue range. That means the model is not a clean single-chain HA ectodomain with a trivial 1–550 numbering map.</p>
-<p>This is important because the script assumes the residue numbering corresponds cleanly to the mature HA residues used in the drift analysis.</p>
-</section>
-<section id="the-numbering-map-must-be-validated-against-the-actual-model-before-trusting-any-residue-position" class="level2">
-<h2 class="anchored" data-anchor-id="the-numbering-map-must-be-validated-against-the-actual-model-before-trusting-any-residue-position">7. The numbering map must be validated against the actual model before trusting any residue position</h2>
-<p>The drift table is in mature HA numbering, and the structural rendering only makes sense if the numbers are correctly translated to PDB numbering. The mapping in <code>results/numbering_map.csv</code> must be checked against the atomic model.</p>
-<p>This should be done by comparing:</p>
+<section id="current-mapping-workflow" class="level2">
+<h2 class="anchored" data-anchor-id="current-mapping-workflow">Current mapping workflow</h2>
+<p>The workflow aligns the reference HA sequence to residues with modeled CA atoms in the configured PDB chain. It records the chain’s actual author residue IDs, amino-acid identities, and whether each reference position is modeled. It does not infer a constant offset from the first aligned residue.</p>
+<p>For the current <code>7KNA</code>, chain <code>A</code> run:</p>
 <ul>
-<li>the residues in <code>7KNA and chain A and name CA</code></li>
-<li>the translated mature-to-PDB mapping in <code>numbering_map.csv</code></li>
-<li>the expected Missouri residue identities at the relevant drift positions</li>
+<li>483 reference residues align to modeled chain residues at 94.2% amino-acid identity.</li>
+<li>The first mature reference residue (<code>ref_index=18</code>) maps to PDB residue <code>A:11</code>.</li>
+<li>Of the 68 drift positions, 60 have modeled residues and 8 do not.</li>
+<li>The 8 unmodeled drift positions are retained in <code>structural_drift.csv</code>, but omitted from PyMOL selections.</li>
+<li>The model and the Missouri reference differ at 20 of the mapped drift positions; <code>pdb_aa</code> and <code>identity_match</code> make those differences visible in the table.</li>
 </ul>
-<p>Until that identity check is done, the structure rendering should be treated as a visual scaffold, not as a confirmed biological mapping.</p>
+<p>These are sequence-to-coordinate mapping checks, not evidence that a drift substitution changes antibody recognition.</p>
 </section>
-<section id="many-residue-positions-are-not-actually-present-in-the-modeled-structure" class="level2">
-<h2 class="anchored" data-anchor-id="many-residue-positions-are-not-actually-present-in-the-modeled-structure">8. Many residue positions are not actually present in the modeled structure</h2>
-<p>The live PyMOL CA counts for the seasonal selections were lower than the number of positions in the drift table. For example, the season selection counts were roughly 25, 18, 19, 17, and 11 CA atoms instead of the full drift counts in the CSV.</p>
-<p>This tells us that many of the drift positions are either:</p>
+<section id="generated-outputs" class="level2">
+<h2 class="anchored" data-anchor-id="generated-outputs">Generated outputs</h2>
 <ul>
-<li>not in the PDB model,</li>
-<li>not present in the selected chain,</li>
-<li>not present as modeled CA atoms,</li>
-<li>or not part of the HA ectodomain represented by this PDB entry.</li>
-</ul>
-<p>A structural visualization must account for that before it is interpreted as a biological distribution.</p>
-</section>
-<section id="the-view-is-useful-as-a-check-but-not-as-a-result" class="level2">
-<h2 class="anchored" data-anchor-id="the-view-is-useful-as-a-check-but-not-as-a-result">9. The view is useful as a check, but not as a result</h2>
-<p>The current PyMOL view is useful for:</p>
-<ul>
-<li>confirming that the script is executing,</li>
-<li>confirming that residue selections are being created,</li>
-<li>checking whether the selected positions fall on the modeled HA body,</li>
-<li>identifying that some positions are in the head and others in the stem-like region.</li>
-</ul>
-<p>It is not yet enough to support a publication claim about drift distribution without:</p>
-<ul>
-<li>an explicit chain/domain validation,</li>
-<li>a residue-by-residue match to the numbered model,</li>
-<li>a clear exclusion of non-modeled positions,</li>
-<li>and a proper domain definition.</li>
+<li><code>results/numbering_map.csv</code> maps each mature reference position to its PDB chain/residue ID, or marks it <code>not_modeled</code>.</li>
+<li><code>results/numbering_check.txt</code> reports aligned-residue count, sequence identity, and reference coverage. The configured minimums are 250 aligned residues and 80% identity.</li>
+<li><code>results/drift_detail.csv</code> reports per-season substitutions, counts, fractions, and denominators for drift positions.</li>
+<li><code>results/structural_drift.csv</code> joins the detailed drift table to the coordinate map and retains unmodeled positions explicitly.</li>
+<li><code>results/drift.pml</code> selects only above-threshold residues that are modeled in the configured chain and restricts selections to CA atoms.</li>
+<li><code>results/structure_validation.txt</code> summarizes mapped and unmodeled drift positions.</li>
 </ul>
 </section>
-<section id="recommended-next-step" class="level2">
-<h2 class="anchored" data-anchor-id="recommended-next-step">10. Recommended next step</h2>
-<p>The right next move is not to call the PyMOL result “done.” Instead, the next step is to create a strict structural validation:</p>
-<ol type="1">
-<li>print the CA range of the relevant chain,</li>
-<li>compare it against the mature numbering map,</li>
-<li>count atoms in each seasonal selection,</li>
-<li>exclude or mark residues that are not modeled,</li>
-<li>then generate the final visual only after the model identity is confirmed.</li>
-</ol>
-<p>This is the needed epistemic check before the draft should present the structural picture as a real biological result.</p>
+<section id="interpretation-limits" class="level2">
+<h2 class="anchored" data-anchor-id="interpretation-limits">Interpretation limits</h2>
+<ul>
+<li>The project uses a 17-residue signal-peptide offset for mature indexing. The mapping workflow applies that convention consistently but does not independently validate the biological cleavage site.</li>
+<li>The PDB model is not the same isolate as the Missouri reference. A <code>pdb_aa</code> mismatch is a difference between the structure and reference, not a drift substitution in the seasonal samples.</li>
+<li>No published antigenic-site map is applied. Structural proximity or sequence variability alone does not establish an antigenic effect.</li>
+<li>The seasonal sample is capped at 10 sequences per season, so reported fractions are based on a small sample and should be read with their denominators.</li>
+<li>The current PDB candidate should be reconsidered. PDB 9GSP is a promising higher-identity H1 candidate (about 96.6% sequence identity to Missouri, with 488 modeled CA-bearing residues in chain A), but it is A/Victoria/2570/2019 rather than an exact A/Missouri/11/2025 structure. It differs at 19 positions and should be documented and validated before replacing 7KNA.</li>
+<li>Exact-name searches can return unrelated H2/H4 “Missouri” strains. A candidate must match H1N1, full-chain coverage, sequence identity, and biological intent rather than strain-name text alone.</li>
+</ul>
+<p>Before making antigenic claims, select an experimentally supported H1 epitope map, translate its numbering to the project reference, and support functional claims with relevant antibody or neutralization evidence.</p>
 
 
 </section>
@@ -296,7 +242,8 @@ stem = resi 301-550</code></pre>
           return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
       }
       // Inspect non-navigation links and adorn them if external
-     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      window.quartoDecorateExternalLinks = function (root) {
+     var links = (root || window.document).querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
       for (var i=0; i<links.length; i++) {
         const link = links[i];
         if (!isInternal(link.href)) {
@@ -305,8 +252,69 @@ stem = resi 301-550</code></pre>
           if (link.dataset.originalHref !== undefined) {
             link.href = link.dataset.originalHref;
           }
+          if (!link.classList.contains('no-external-icon')) {
+          }
         }
       }
+      };
+      window.quartoDecorateExternalLinks(window.document);
+    // Esc closes the popup (WCAG 1.4.13) and focus leaving both trigger and
+    // popup closes it (WCAG 2.4.11); tippy handles neither for interactive popups.
+    const hideOnEscAndFocusOut = {
+      name: 'hideOnEscAndFocusOut',
+      defaultValue: true,
+      fn(instance) {
+        const dismiss = () => {
+          // A show scheduled by the trigger delay would otherwise reopen it
+          instance.clearDelayTimeouts();
+          instance.hide();
+        };
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') {
+            return;
+          }
+          // Keep Esc from also reaching page handlers (e.g. reveal.js overview),
+          // except an open reveal.js slide menu, which Esc should close too.
+          // The menu handles keys only when its keyboard option is on.
+          const menuHandlesEsc = window.Reveal?.getPlugin?.('menu')?.isOpen() &&
+            window.Reveal.getConfig().menu?.keyboard !== false;
+          if (!menuHandlesEsc) {
+            event.stopPropagation();
+          }
+          if (instance.popper.contains(window.document.activeElement)) {
+            // Disabled while refocusing so the focus trigger does not reopen it
+            instance.disable();
+            instance.reference.focus();
+            instance.enable();
+          }
+          dismiss();
+        };
+        const onFocusOut = (event) => {
+          const target = event.relatedTarget;
+          if (target && !instance.reference.contains(target) &&
+              !instance.popper.contains(target)) {
+            dismiss();
+          }
+        };
+        // On the trigger too: a click trigger (code-annotations: select) has no
+        // blur handling. Attached for the instance's lifetime so leaving the
+        // trigger also cancels a show still pending on the trigger delay.
+        instance.reference.addEventListener('focusout', onFocusOut);
+        return {
+          onShow() {
+            window.document.addEventListener('keydown', onKeyDown, true);
+            instance.popper.addEventListener('focusout', onFocusOut);
+          },
+          onHide() {
+            window.document.removeEventListener('keydown', onKeyDown, true);
+            instance.popper.removeEventListener('focusout', onFocusOut);
+          },
+          onDestroy() {
+            instance.reference.removeEventListener('focusout', onFocusOut);
+          },
+        };
+      },
+    };
     function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
       const config = {
         allowHTML: true,
@@ -320,6 +328,7 @@ stem = resi 301-550</code></pre>
         interactiveBorder: 10,
         theme: 'quarto',
         placement: 'bottom-start',
+        plugins: [hideOnEscAndFocusOut],
       };
       if (contentFn) {
         config.content = contentFn;
@@ -482,44 +491,54 @@ stem = resi 301-550</code></pre>
           const lineIds = lines.map((line) => {
             return targetCell + "-" + line;
           })
-          let top = null;
-          let height = null;
-          let parent = null;
+          // Each band is positioned against its own containing block, which is
+          // not the offsetParent of the lines, so place it from client rects.
+          const placeBand = (band, firstEl, lastEl, codeBlock) => {
+            const container = band.offsetParent;
+            if (container === null) {
+              return;
+            }
+            const containerRect = container.getBoundingClientRect();
+            // Reveal.js scales slides with a transform, so convert client
+            // pixels back to the CSS pixels of the container.
+            const scale = containerRect.height / container.offsetHeight || 1;
+            const firstRect = firstEl.getBoundingClientRect();
+            const lastRect = lastEl.getBoundingClientRect();
+            const top = (firstRect.top - containerRect.top) / scale - container.clientTop + container.scrollTop;
+            const height = (lastRect.bottom - firstRect.top) / scale;
+            band.style.top = top - 2 + "px";
+            band.style.height = height + 4 + "px";
+            if (codeBlock) {
+              // Without the copy button wrapper, the containing block is wider
+              // than the code block, so span the code block explicitly.
+              const blockRect = codeBlock.getBoundingClientRect();
+              band.style.left = (blockRect.left - containerRect.left) / scale - container.clientLeft + container.scrollLeft + "px";
+              band.style.width = blockRect.width / scale + "px";
+            }
+          };
           if (lineIds.length > 0) {
-              //compute the position of the single el (top and bottom and make a div)
-              const el = window.document.getElementById(lineIds[0]);
-              top = el.offsetTop;
-              height = el.offsetHeight;
-              parent = el.parentElement.parentElement;
-            if (lineIds.length > 1) {
-              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
-              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
-              height = bottom - top;
+            const el = window.document.getElementById(lineIds[0]);
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const parent = el.parentElement.parentElement;
+            // cook up a div (if necessary) and position it
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
             }
-            if (top !== null && height !== null && parent !== null) {
-              // cook up a div (if necessary) and position it 
-              let div = window.document.getElementById("code-annotation-line-highlight");
-              if (div === null) {
-                div = window.document.createElement("div");
-                div.setAttribute("id", "code-annotation-line-highlight");
-                div.style.position = 'absolute';
-                parent.appendChild(div);
-              }
-              div.style.top = top - 2 + "px";
-              div.style.height = height + 4 + "px";
-              div.style.left = 0;
-              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
-              if (gutterDiv === null) {
-                gutterDiv = window.document.createElement("div");
-                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
-                gutterDiv.style.position = 'absolute';
-                const codeCell = window.document.getElementById(targetCell);
-                const gutter = codeCell.querySelector('.code-annotation-gutter');
-                gutter.appendChild(gutterDiv);
-              }
-              gutterDiv.style.top = top - 2 + "px";
-              gutterDiv.style.height = height + 4 + "px";
+            placeBand(div, el, lastEl, parent.closest("div.sourceCode") || parent);
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
             }
+            placeBand(gutterDiv, el, lastEl);
             selectedAnnoteEl = annoteEl;
           }
         };
@@ -617,6 +636,9 @@ stem = resi 301-550</code></pre>
       }
     }
   });
+  </script>
+  <script type="application/javascript">
+  window.quartoScrollableRegionsLabels = {"code":"Scrollable code","output":"Scrollable output"};
   </script>
 </div> <!-- /content -->
 

@@ -1,175 +1,224 @@
 #!/usr/bin/env python3
-"""Map reference HA numbering to PDB residue numbering.
-
-Workflow:
-1. Load a reference FASTA.
-2. Download the matching PDB chain FASTA from RCSB.
-3. Pairwise-align the two sequences.
-4. Compute a mature-peptide numbering map: idx - 17 + offset.
-5. Save a CSV ready for downstream structure work.
-"""
+"""Map reference HA positions to modeled PDB residues."""
 
 from __future__ import annotations
 
 import argparse
 import csv
-from io import StringIO
 from pathlib import Path
 
 import requests
 from Bio import SeqIO
 from Bio.Align import PairwiseAligner
+from Bio.PDB import MMCIFParser
+from Bio.SeqUtils import seq1
 
 ROOT = Path(__file__).resolve().parents[1]
 REF_PATH = ROOT / "data" / "ref" / "ref_A_Missouri_11_2025.faa"
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Compute HA reference-to-PDB numbering.")
+    parser = argparse.ArgumentParser(description="Map reference HA positions to modeled PDB residues.")
     parser.add_argument("--reference", type=Path, default=REF_PATH, help="Reference FASTA path")
-    parser.add_argument("--pdb-id", default="7KNA", help="PDB identifier to fetch from RCSB")
-    parser.add_argument("--chain", default="A", help="PDB chain to use")
-    parser.add_argument("--expected-protein", default="Hemagglutinin", help="Expected protein name in the PDB FASTA header")
-    parser.add_argument("--expected-organism", default="Influenza A virus", help="Expected organism in the PDB FASTA header")
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "results", help="Directory to store numbering outputs")
+    parser.add_argument("--structure", type=Path, default=None, help="PDB mmCIF file; fetched from RCSB if omitted")
+    parser.add_argument("--pdb-id", default="7KNA", help="PDB identifier")
+    parser.add_argument("--chain", default="A", help="PDB author chain ID")
+    parser.add_argument("--signal-peptide-length", type=int, default=17)
+    parser.add_argument("--min-aligned", type=int, default=250, help="Minimum aligned HA residues required")
+    parser.add_argument("--min-identity", type=float, default=0.80, help="Minimum aligned sequence identity")
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "results")
     return parser.parse_args()
 
 
 def load_reference(path: Path) -> str:
     records = list(SeqIO.parse(path, "fasta"))
-    if not records:
-        raise FileNotFoundError(f"No FASTA records found in {path}")
-    return str(records[0].seq)
+    if len(records) != 1:
+        raise ValueError(f"Expected exactly one reference FASTA record in {path}, found {len(records)}")
+    return str(records[0].seq).upper()
 
 
-def validate_pdb_record(record, pdb_id: str, chain_id: str, expected_protein: str, expected_organism: str) -> None:
-    label = f"{record.id} {record.description}".upper()
-    description = record.description.upper()
-    protein_ok = expected_protein.upper() in description
-    organism_ok = expected_organism.upper() in description
-    chain_ok = (
-        f"{pdb_id}_{chain_id}".upper() in label
-        or f"CHAIN {chain_id}" in label
-        or f"CHAINS" in label and str(chain_id).upper() in label
-    )
-    if not chain_ok:
-        raise ValueError(f"Fetched record {record.id} did not match PDB {pdb_id} chain {chain_id}")
-    if not protein_ok:
-        raise ValueError(
-            f"PDB {pdb_id} fetched a record whose description does not match expected protein '{expected_protein}': {record.description}"
-        )
-    if not organism_ok:
-        raise ValueError(
-            f"PDB {pdb_id} fetched a record whose description does not match expected organism '{expected_organism}': {record.description}"
-        )
-
-
-def fetch_pdb_fasta(
-    pdb_id: str,
-    chain_id: str = "A",
-    expected_protein: str = "Hemagglutinin",
-    expected_organism: str = "Influenza A virus",
-) -> str:
-    url = f"https://www.rcsb.org/fasta/entry/{pdb_id}/display"
-    response = requests.get(url, timeout=30)
+def download_structure(pdb_id: str, output_path: Path) -> Path:
+    url = f"https://files.rcsb.org/download/{pdb_id.upper()}.cif"
+    response = requests.get(url, timeout=60)
     response.raise_for_status()
-    records = list(SeqIO.parse(StringIO(response.text), "fasta"))
-    if not records:
-        raise ValueError(f"No FASTA records returned for PDB {pdb_id} from RCSB")
-
-    candidate = None
-    for record in records:
-        if record.id.startswith(f"{pdb_id}_{chain_id}") or record.id.endswith(f"_{chain_id}"):
-            candidate = record
-            break
-    if candidate is None:
-        candidate = records[0]
-
-    validate_pdb_record(candidate, pdb_id, chain_id, expected_protein, expected_organism)
-    return str(candidate.seq)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_bytes(response.content)
+    return output_path
 
 
-def build_numbering_map(reference_seq: str, pdb_seq: str) -> list[dict]:
+def get_chain_residues(structure_path: Path, chain_id: str):
+    parser = MMCIFParser(QUIET=True)
+    structure = parser.get_structure("structure", str(structure_path))
+    model = next(structure.get_models())
+    if chain_id not in model:
+        available = ", ".join(chain.id for chain in model)
+        raise ValueError(f"Chain {chain_id!r} not found in {structure_path}; available chains: {available}")
+
+    residues = [
+        residue
+        for residue in model[chain_id]
+        if residue.id[0] == " " and "CA" in residue
+    ]
+    if not residues:
+        raise ValueError(f"No modeled protein residues with CA atoms found in chain {chain_id!r}")
+    return residues
+
+
+def build_numbering_map(
+    reference_seq: str,
+    structure_residues,
+    chain_id: str,
+    signal_peptide_length: int = 17,
+    min_aligned: int = 250,
+    min_identity: float = 0.80,
+) -> tuple[list[dict], dict]:
+    structure_seq = "".join(
+        seq1(residue.resname, custom_map={"MSE": "M"}, undef_code="X")
+        for residue in structure_residues
+    )
     aligner = PairwiseAligner()
-    aligner.mode = "global"
+    aligner.mode = "local"
     aligner.match_score = 2
     aligner.mismatch_score = -1
     aligner.open_gap_score = -10
     aligner.extend_gap_score = -0.5
 
-    alignments = aligner.align(reference_seq, pdb_seq)
+    alignments = aligner.align(reference_seq, structure_seq)
     if not alignments:
-        raise RuntimeError("Pairwise alignment failed.")
+        raise RuntimeError("Reference-to-structure sequence alignment failed.")
     alignment = alignments[0]
-    ref_aligned, pdb_aligned = str(alignment[0]), str(alignment[1])
 
-    ref_index = 0
-    pdb_index = 0
-    offset = None
-    rows: list[dict] = []
+    ref_to_residue = {}
+    identical = 0
+    aligned = 0
+    ref_blocks, structure_blocks = alignment.aligned
+    for (ref_start, ref_end), (structure_start, structure_end) in zip(ref_blocks, structure_blocks):
+        if ref_end - ref_start != structure_end - structure_start:
+            raise RuntimeError("Alignment produced incompatible paired blocks.")
+        for offset in range(ref_end - ref_start):
+            ref_index = int(ref_start + offset) + 1
+            residue = structure_residues[int(structure_start + offset)]
+            ref_to_residue[ref_index] = residue
+            aligned += 1
+            ref_aa = reference_seq[ref_index - 1]
+            structure_aa = seq1(residue.resname, custom_map={"MSE": "M"}, undef_code="X")
+            identical += ref_aa == structure_aa
 
-    for ref_char, pdb_char in zip(ref_aligned, pdb_aligned):
-        if ref_char != "-":
-            ref_index += 1
-        if pdb_char != "-":
-            pdb_index += 1
+    identity = identical / aligned if aligned else 0.0
+    if aligned < min_aligned:
+        raise ValueError(
+            f"Only {aligned} reference residues aligned to {chain_id}; expected at least {min_aligned}"
+        )
+    if identity < min_identity:
+        raise ValueError(
+            f"Reference-to-structure identity is {identity:.3f}; expected at least {min_identity:.3f}"
+        )
 
-        if ref_char != "-" and pdb_char != "-":
-            mature_index = ref_index - 17
-            if mature_index >= 1 and offset is None:
-                offset = pdb_index - mature_index
-            if mature_index >= 1:
-                pdb_resi = mature_index + offset
-                rows.append(
-                    {
-                        "ref_index": ref_index,
-                        "mature_index": mature_index,
-                        "pdb_resi": pdb_resi,
-                        "ref_aa": ref_char,
-                        "pdb_aa": pdb_char,
-                    }
-                )
+    rows = []
+    for ref_index, ref_aa in enumerate(reference_seq, start=1):
+        mature_index = ref_index - signal_peptide_length
+        if mature_index < 1:
+            continue
 
-    if offset is None:
-        raise RuntimeError("No mature-peptide residues were aligned to the PDB chain.")
+        residue = ref_to_residue.get(ref_index)
+        if residue is None:
+            rows.append(
+                {
+                    "ref_index": ref_index,
+                    "mature_index": mature_index,
+                    "ref_aa": ref_aa,
+                    "pdb_chain": chain_id,
+                    "pdb_resi": "",
+                    "pdb_aa": "",
+                    "identity_match": "",
+                    "mapping_status": "not_modeled",
+                }
+            )
+            continue
 
-    return rows
+        pdb_aa = seq1(residue.resname, custom_map={"MSE": "M"}, undef_code="X")
+        pdb_resi = f"{residue.id[1]}{residue.id[2].strip()}"
+        rows.append(
+            {
+                "ref_index": ref_index,
+                "mature_index": mature_index,
+                "ref_aa": ref_aa,
+                "pdb_chain": chain_id,
+                "pdb_resi": pdb_resi,
+                "pdb_aa": pdb_aa,
+                "identity_match": "yes" if ref_aa == pdb_aa else "no",
+                "mapping_status": "modeled",
+            }
+        )
+
+    stats = {
+        "aligned_residues": aligned,
+        "identical_residues": identical,
+        "identity": identity,
+        "reference_coverage": len(ref_to_residue) / len(reference_seq),
+        "mapped_reference_positions": len(ref_to_residue),
+    }
+    return rows, stats
 
 
 def main() -> int:
     args = parse_args()
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    structure_path = args.structure
+    if structure_path is None:
+        structure_path = download_structure(args.pdb_id, args.output_dir / f"{args.pdb_id.upper()}.cif")
+    if not structure_path.exists():
+        raise FileNotFoundError(f"Structure file not found: {structure_path}")
 
     reference_seq = load_reference(args.reference)
-    pdb_seq = fetch_pdb_fasta(
-        args.pdb_id,
+    residues = get_chain_residues(structure_path, args.chain)
+    rows, stats = build_numbering_map(
+        reference_seq,
+        residues,
         args.chain,
-        expected_protein=args.expected_protein,
-        expected_organism=args.expected_organism,
+        signal_peptide_length=args.signal_peptide_length,
+        min_aligned=args.min_aligned,
+        min_identity=args.min_identity,
     )
-    rows = build_numbering_map(reference_seq, pdb_seq)
 
     out_dir = args.output_dir
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "numbering_map.csv"
+    map_path = out_dir / "numbering_map.csv"
     check_path = out_dir / "numbering_check.txt"
 
-    with out_path.open("w", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=["ref_index", "mature_index", "pdb_resi", "ref_aa", "pdb_aa"])
+    with map_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "ref_index",
+                "mature_index",
+                "ref_aa",
+                "pdb_chain",
+                "pdb_resi",
+                "pdb_aa",
+                "identity_match",
+                "mapping_status",
+            ],
+        )
         writer.writeheader()
         writer.writerows(rows)
 
-    first = rows[0]
-    later = rows[min(len(rows) - 1, 50)]
+    modeled = sum(row["mapping_status"] == "modeled" for row in rows)
     check_path.write_text(
-        "Reference-to-PDB numbering diagnostic\n"
-        f"First mature residue: ref_index={first['ref_index']}, mature_index={first['mature_index']}, pdb_resi={first['pdb_resi']}\n"
-        f"Later check: ref_index={later['ref_index']}, mature_index={later['mature_index']}, pdb_resi={later['pdb_resi']}\n"
-        "Verify one landmark directly in PyMOL, e.g. select a residue near the receptor binding site and compare numbering.\n",
+        "STRUCTURE CHAIN MAPPING PASSED\n"
+        f"PDB: {args.pdb_id.upper()}\n"
+        f"Chain: {args.chain}\n"
+        f"Reference residues aligned: {stats['aligned_residues']}\n"
+        f"Exact amino-acid matches: {stats['identical_residues']}\n"
+        f"Aligned sequence identity: {stats['identity']:.4f}\n"
+        f"Reference coverage: {stats['reference_coverage']:.4f}\n"
+        f"Mature positions mapped to modeled residues: {modeled}\n"
+        f"Signal-peptide offset used for mature numbering: {args.signal_peptide_length}\n"
+        "This validates chain sequence mapping, not the biological signal-peptide cleavage site.\n",
         encoding="utf-8",
     )
 
-    print(f"Saved numbering map to {out_path}")
-    print(f"Saved numbering check summary to {check_path}")
+    print(f"Saved coordinate-based numbering map to {map_path}")
+    print(f"Saved chain validation summary to {check_path}")
     return 0
 
 

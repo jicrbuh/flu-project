@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Compute reference-anchored variability across seasons.
-
-The output is a table with columns roughly matching the project design:
-  mature, season, aa, ref_aa, id, differs, etc.
-"""
+"""Compute reference-anchored variability and per-season drift details."""
 
 from __future__ import annotations
 
@@ -20,6 +16,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Compute reference-anchored variability across seasons.")
     parser.add_argument("--alignment", type=Path, default=ROOT / "results" / "aln.faa")
     parser.add_argument("--meta", type=Path, default=ROOT / "data" / "meta.csv")
+    parser.add_argument("--signal-peptide-length", type=int, default=17)
     parser.add_argument("--output-dir", type=Path, default=ROOT / "results")
     return parser.parse_args()
 
@@ -52,7 +49,7 @@ def main() -> int:
         ref_position += 1
 
         # compute mature peptide numbering with the same signal-peptide offset used elsewhere
-        mature = ref_position - 17
+        mature = ref_position - args.signal_peptide_length
         if mature < 1:
             continue
 
@@ -92,8 +89,51 @@ def main() -> int:
     drift_path = out_dir / "drift.csv"
     drift.to_csv(drift_path)
 
+    drift_positions = set(drift.index.astype(int))
+    seasonal_counts = df.groupby("season")["id"].nunique()
+    detail_rows = []
+    drift_df = df[df["mature"].isin(drift_positions)]
+    for (mature, season), group in drift_df.groupby(["mature", "season"], sort=True):
+        n_compared = int(group["id"].nunique())
+        n_different = int(group["differs"].sum())
+        ref_aa = str(group["ref_aa"].iloc[0])
+        substitutions = group.loc[group["differs"], "aa"].value_counts().sort_index()
+        substitution_text = ";".join(
+            f"{ref_aa}>{aa}:{count}" for aa, count in substitutions.items()
+        )
+        detail_rows.append(
+            {
+                "mature": int(mature),
+                "ref_index": int(mature) + args.signal_peptide_length,
+                "ref_aa": ref_aa,
+                "season": season,
+                "sequences_in_season": int(seasonal_counts.get(season, 0)),
+                "sequences_compared": n_compared,
+                "sequences_different": n_different,
+                "fraction_different": n_different / n_compared if n_compared else 0.0,
+                "substitutions": substitution_text or "none",
+            }
+        )
+
+    detail_path = out_dir / "drift_detail.csv"
+    pd.DataFrame(
+        detail_rows,
+        columns=[
+            "mature",
+            "ref_index",
+            "ref_aa",
+            "season",
+            "sequences_in_season",
+            "sequences_compared",
+            "sequences_different",
+            "fraction_different",
+            "substitutions",
+        ],
+    ).to_csv(detail_path, index=False)
+
     print(f"Wrote variability summary to {variability_path}")
     print(f"Wrote drift subset to {drift_path}")
+    print(f"Wrote detailed drift table to {detail_path}")
     return 0
 
 
