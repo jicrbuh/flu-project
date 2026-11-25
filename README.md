@@ -93,6 +93,25 @@ Typical outputs include:
 - `results/drift.pml`
 - `results/validation_summary.txt`
 
+## Render structure figures locally
+
+After running the workflow, create a PyMOL script for the current mapped drift data and open it:
+
+```bash
+python3 scripts/07_make_pymol_figures.py --season 2024_25
+pymol figures/2024_25_structure_views.pml
+```
+
+The script writes four PNG views under `figures/`. They show chains A/B/C in red/green/blue, mapped non-zero drift positions for the requested season as yellow spheres on the selected chain, and mature HA residue numbers as labels. These figures are rendered from the current `results/structural_drift.csv`, so they may differ from the older images on the published site.
+
+To inspect or adjust the generated PyMOL commands before rendering, open `figures/2024_25_structure_views.pml` in a text editor. If labels still overlap, generate smaller labels:
+
+```bash
+python3 scripts/07_make_pymol_figures.py --season 2024_25 --label-size 8
+```
+
+Run the generated `.pml` with PyMOL again to regenerate the PNGs.
+
 ## Quarto site
 
 To preview the website locally:
